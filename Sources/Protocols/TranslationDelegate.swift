@@ -1,0 +1,23 @@
+//
+//  TranslationDelegate.swift
+//
+//  Created by Grant Brooks Goodman.
+//  Copyright © NEOTechnica Corporation. All rights reserved.
+//
+
+/* Native */
+import Foundation
+
+/* 3rd-party */
+import Translator
+
+public extension AlertKit {
+    protocol TranslationDelegate {
+        func getTranslations(
+            _ inputs: [TranslationInput],
+            languagePair: LanguagePair,
+            hud hudConfig: (appearsAfter: Duration, isModal: Bool)?,
+            timeout timeoutConfig: (duration: Duration, returnsInputs: Bool)
+        ) async -> Result<[Translation], TranslationError>
+    }
+}
