@@ -30,7 +30,7 @@ public extension AlertKit {
             title: String? = nil,
             message: String,
             actions: [AKAction],
-            cancelButtonTitle: String = "Cancel"
+            cancelButtonTitle: String = Constants.defaultCancelButtonTitle
         ) {
             assert(!actions.isEmpty, "Modal alerts are not supported")
             assert(!actions.contains(where: { $0.style == .cancel }), "Action sheets include cancel buttons by default")
@@ -190,7 +190,7 @@ public extension AlertKit {
                 uniqueInputs.append(input)
             }
 
-            return uniqueInputs.filter { $0.value != "OK" }
+            return uniqueInputs.filter { $0.value != Constants.defaultActionTitle }
         }
     }
 }

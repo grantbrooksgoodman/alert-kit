@@ -8,14 +8,12 @@
 /* Native */
 import Foundation
 
-/* 3rd-party */
-import Translator
-
 // MARK: - Type Aliases
 
 public typealias AKAction = AlertKit.Action
 public typealias AKActionSheet = AlertKit.ActionSheet
 public typealias AKAlert = AlertKit.Alert
+public typealias AKTextInputAlert = AlertKit.TextInputAlert
 
 typealias Config = AlertKit.Config
 
@@ -29,7 +27,7 @@ public struct AlertKit {
 
 public extension AlertKit {
     final class Config {
-        // MARK: - Properties
+        /* MARK: Properties */
 
         // Singleton
         public static let shared = Config()
@@ -47,11 +45,11 @@ public extension AlertKit {
         public private(set) var translationHUDConfig: (appearsAfter: Duration, isModal: Bool) = (.seconds(2), true)
         public private(set) var translationTimeoutConfig: (duration: Duration, returnsInputs: Bool) = (.seconds(10), true)
 
-        // MARK: - Init
+        /* MARK: Init */
 
         private init() {}
 
-        // MARK: - Delegate Registration
+        /* MARK: Delegate Registration */
 
         public func registerLoggerDelegate(_ loggerDelegate: LoggerDelegate) {
             self.loggerDelegate = loggerDelegate
@@ -65,7 +63,7 @@ public extension AlertKit {
             self.translationDelegate = translationDelegate
         }
 
-        // MARK: - Value Overrides
+        /* MARK: Value Overrides */
 
         public func overrideSourceLanguageCode(_ sourceLanguageCode: String) {
             self.sourceLanguageCode = sourceLanguageCode
@@ -82,5 +80,15 @@ public extension AlertKit {
         public func overrideTranslationTimeoutConfig(_ translationTimeoutConfig: (Duration, Bool)) {
             self.translationTimeoutConfig = translationTimeoutConfig
         }
+    }
+}
+
+// MARK: - Constants
+
+public extension AlertKit {
+    enum Constants {
+        public static let defaultActionTitle = "OK"
+        public static let defaultCancelButtonTitle = "Cancel"
+        public static let defaultConfirmButtonTitle = "Confirm"
     }
 }
