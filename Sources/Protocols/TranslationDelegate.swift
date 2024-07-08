@@ -16,8 +16,8 @@ public extension AlertKit {
         func getTranslations(
             _ inputs: [TranslationInput],
             languagePair: LanguagePair,
-            hud hudConfig: (appearsAfter: Duration, isModal: Bool)?,
-            timeout timeoutConfig: (duration: Duration, returnsInputs: Bool)
+            hud hudConfig: HUDConfig?,
+            timeout timeoutConfig: TranslationTimeoutConfig
         ) async -> Result<[Translation], TranslationError>
     }
 }

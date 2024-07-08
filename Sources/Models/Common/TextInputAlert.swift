@@ -1,5 +1,5 @@
 //
-//  Alert.swift
+//  TextInputAlert.swift
 //
 //  Created by Grant Brooks Goodman.
 //  Copyright © NEOTechnica Corporation. All rights reserved.
@@ -13,36 +13,56 @@ import UIKit
 import Translator
 
 public extension AlertKit {
-    struct Alert: Equatable {
+    struct TextInputAlert: Equatable {
         // MARK: - Properties
 
-        // Array
-        public let actions: [AKAction]
-
         // String
+        public let cancelButtonTitle: String
+        public let confirmButtonTitle: String
         public let message: String
         public let title: String?
+
+        // Other
+        public let attributes: TextFieldAttributes
+        public let confirmButtonStyle: ActionStyle
 
         // MARK: - Init
 
         public init(
             title: String? = nil,
             message: String,
-            actions: [AKAction] = [.init(Constants.defaultActionTitle, style: .cancel, effect: {})]
+            attributes: TextFieldAttributes = .init(),
+            cancelButtonTitle: String = Constants.defaultCancelButtonTitle,
+            confirmButtonTitle: String = Constants.defaultConfirmButtonTitle,
+            confirmButtonStyle: ActionStyle = .preferred
         ) {
-            assert(!actions.isEmpty, "Modal alerts are not supported")
             self.title = title
             self.message = message
-            self.actions = actions
+            self.attributes = attributes
+            self.cancelButtonTitle = cancelButtonTitle
+            self.confirmButtonTitle = confirmButtonTitle
+            self.confirmButtonStyle = confirmButtonStyle
         }
 
         // MARK: - Present
 
+        /// - Returns: On confirmation, the text entered into the text field.
         @MainActor
-        public func present(translating keys: [TranslationOptionKey] = [.all]) async {
+        public func present(
+            translating keys: [TranslationOptionKey] = [
+                .cancelButtonTitle,
+                .confirmButtonTitle,
+                .message,
+                .placeholderText,
+                .sampleText,
+                .title,
+            ]
+        ) async -> String? {
             guard !keys.isEmpty else {
                 return await withCheckedContinuation { continuation in
-                    present { continuation.resume() }
+                    present { string in
+                        continuation.resume(returning: string)
+                    }
                 }
             }
 
@@ -62,28 +82,34 @@ public extension AlertKit {
         }
 
         @MainActor
-        private func present(completion: @escaping () -> Void) {
+        private func present(completion: @escaping (String?) -> Void) {
             let alertController = UIAlertController(
                 title: title,
                 message: message,
                 preferredStyle: .alert
             )
 
-            for action in actions {
-                let alertAction = UIAlertAction(
-                    title: action.title,
-                    style: action.style.uiAlertStyle
-                ) { _ in
-                    action.perform()
-                    completion()
-                }
+            alertController.addTextField { $0.configure(with: attributes) }
 
-                alertAction.isEnabled = action.isEnabled
-                alertController.addAction(alertAction)
+            let cancelAction = UIAlertAction(
+                title: cancelButtonTitle,
+                style: .cancel
+            ) { _ in
+                completion(nil)
+            }
 
-                if action.style == .preferred || action.style == .destructivePreferred {
-                    alertController.preferredAction = alertAction
-                }
+            let confirmAction = UIAlertAction(
+                title: confirmButtonTitle,
+                style: confirmButtonStyle.uiAlertStyle
+            ) { _ in
+                completion(alertController.textFields?.first?.text)
+            }
+
+            alertController.addAction(cancelAction)
+            alertController.addAction(confirmAction)
+
+            if confirmButtonStyle == .preferred || confirmButtonStyle == .destructivePreferred {
+                alertController.preferredAction = confirmAction
             }
 
             Config.shared.presentationDelegate?.present(alertController)
@@ -91,7 +117,7 @@ public extension AlertKit {
 
         // MARK: - Translate
 
-        private func translate(_ keys: [TranslationOptionKey]) async -> Result<AKAlert, Error> {
+        private func translate(_ keys: [TranslationOptionKey]) async -> Result<TextInputAlert, Error> {
             let translator = Config.shared.translationDelegate ?? TranslationService.shared
 
             var uniqueKeys = [TranslationOptionKey]()
@@ -113,25 +139,27 @@ public extension AlertKit {
 
             switch getTranslationsResult {
             case let .success(translations):
-                var actions = [AKAction]()
-                for action in self.actions {
-                    actions.append(.init(
-                        translations.firstOutput(matching: action.title),
-                        isEnabled: action.isEnabled,
-                        style: action.style,
-                        effect: action.effect
-                    ))
-                }
-
                 var translatedTitle: String?
                 if let title = title {
                     translatedTitle = translations.firstOutput(matching: title)
                 }
 
+                var attributes = attributes
+                if let placeholderText = attributes.placeholderText {
+                    attributes = attributes.replacingPlaceholderText(translations.firstOutput(matching: placeholderText))
+                }
+
+                if let sampleText = attributes.sampleText {
+                    attributes = attributes.replacingSampleText(translations.firstOutput(matching: sampleText))
+                }
+
                 return .success(.init(
                     title: translatedTitle,
                     message: translations.firstOutput(matching: message),
-                    actions: actions
+                    attributes: attributes,
+                    cancelButtonTitle: translations.firstOutput(matching: cancelButtonTitle),
+                    confirmButtonTitle: translations.firstOutput(matching: confirmButtonTitle),
+                    confirmButtonStyle: confirmButtonStyle
                 ))
 
             case let .failure(error):
@@ -145,22 +173,22 @@ public extension AlertKit {
             var inputs = [TranslationInput]()
             for key in optionKeys {
                 switch key {
-                case let .actions(actions):
-                    guard !actions.isEmpty else {
-                        inputs.append(contentsOf: self.actions.map { .init($0.title) })
-                        continue
-                    }
+                case .cancelButtonTitle:
+                    inputs.append(.init(cancelButtonTitle))
 
-                    inputs.append(contentsOf: self.actions.filter { actions.contains($0) }.map { .init($0.title) })
-
-                case .all:
-                    inputs.append(contentsOf: actions.map { .init($0.title) })
-                    inputs.append(.init(message))
-                    guard let title else { continue }
-                    inputs.append(.init(title))
+                case .confirmButtonTitle:
+                    inputs.append(.init(confirmButtonTitle))
 
                 case .message:
                     inputs.append(.init(message))
+
+                case .placeholderText:
+                    guard let placeholderText = attributes.placeholderText else { continue }
+                    inputs.append(.init(placeholderText))
+
+                case .sampleText:
+                    guard let sampleText = attributes.sampleText else { continue }
+                    inputs.append(.init(sampleText))
 
                 case .title:
                     guard let title else { continue }

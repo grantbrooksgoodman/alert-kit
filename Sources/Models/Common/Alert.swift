@@ -1,5 +1,5 @@
 //
-//  ActionSheet.swift
+//  Alert.swift
 //
 //  Created by Grant Brooks Goodman.
 //  Copyright © NEOTechnica Corporation. All rights reserved.
@@ -13,14 +13,13 @@ import UIKit
 import Translator
 
 public extension AlertKit {
-    struct ActionSheet: Equatable {
+    struct Alert: Equatable {
         // MARK: - Properties
 
         // Array
-        public let actions: [AKAction]
+        public let actions: [Action]
 
         // String
-        public let cancelButtonTitle: String
         public let message: String
         public let title: String?
 
@@ -29,21 +28,24 @@ public extension AlertKit {
         public init(
             title: String? = nil,
             message: String,
-            actions: [AKAction],
-            cancelButtonTitle: String = Constants.defaultCancelButtonTitle
+            actions: [Action] = [.init(Constants.defaultActionTitle, style: .cancel, effect: {})]
         ) {
             assert(!actions.isEmpty, "Modal alerts are not supported")
-            assert(!actions.contains(where: { $0.style == .cancel }), "Action sheets include cancel buttons by default")
             self.title = title
             self.message = message
             self.actions = actions
-            self.cancelButtonTitle = cancelButtonTitle
         }
 
         // MARK: - Present
 
         @MainActor
-        public func present(translating keys: [TranslationOptionKey] = [.all]) async {
+        public func present(
+            translating keys: [TranslationOptionKey] = [
+                .actions(),
+                .message,
+                .title,
+            ]
+        ) async {
             guard !keys.isEmpty else {
                 return await withCheckedContinuation { continuation in
                     present { continuation.resume() }
@@ -70,7 +72,7 @@ public extension AlertKit {
             let alertController = UIAlertController(
                 title: title,
                 message: message,
-                preferredStyle: .actionSheet
+                preferredStyle: .alert
             )
 
             for action in actions {
@@ -90,20 +92,12 @@ public extension AlertKit {
                 }
             }
 
-            let cancelAction = UIAlertAction(
-                title: cancelButtonTitle,
-                style: .cancel
-            ) { _ in
-                completion()
-            }
-            alertController.addAction(cancelAction)
-
             Config.shared.presentationDelegate?.present(alertController)
         }
 
         // MARK: - Translate
 
-        private func translate(_ keys: [TranslationOptionKey]) async -> Result<AKActionSheet, Error> {
+        private func translate(_ keys: [TranslationOptionKey]) async -> Result<Alert, Error> {
             let translator = Config.shared.translationDelegate ?? TranslationService.shared
 
             var uniqueKeys = [TranslationOptionKey]()
@@ -125,7 +119,7 @@ public extension AlertKit {
 
             switch getTranslationsResult {
             case let .success(translations):
-                var actions = [AKAction]()
+                var actions = [Action]()
                 for action in self.actions {
                     actions.append(.init(
                         translations.firstOutput(matching: action.title),
@@ -143,8 +137,7 @@ public extension AlertKit {
                 return .success(.init(
                     title: translatedTitle,
                     message: translations.firstOutput(matching: message),
-                    actions: actions,
-                    cancelButtonTitle: translations.firstOutput(matching: cancelButtonTitle)
+                    actions: actions
                 ))
 
             case let .failure(error):
@@ -165,16 +158,6 @@ public extension AlertKit {
                     }
 
                     inputs.append(contentsOf: self.actions.filter { actions.contains($0) }.map { .init($0.title) })
-
-                case .all:
-                    inputs.append(contentsOf: actions.map { .init($0.title) })
-                    inputs.append(.init(cancelButtonTitle))
-                    inputs.append(.init(message))
-                    guard let title else { continue }
-                    inputs.append(.init(title))
-
-                case .cancelButtonTitle:
-                    inputs.append(.init(cancelButtonTitle))
 
                 case .message:
                     inputs.append(.init(message))

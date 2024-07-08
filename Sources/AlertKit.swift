@@ -10,9 +10,9 @@ import Foundation
 
 // MARK: - Type Aliases
 
-public typealias AKAction = AlertKit.Action
 public typealias AKActionSheet = AlertKit.ActionSheet
 public typealias AKAlert = AlertKit.Alert
+public typealias AKErrorAlert = AlertKit.ErrorAlert
 public typealias AKTextInputAlert = AlertKit.TextInputAlert
 
 typealias Config = AlertKit.Config
@@ -39,11 +39,18 @@ public extension AlertKit {
         // Delegates
         public private(set) var loggerDelegate: LoggerDelegate?
         public private(set) var presentationDelegate: PresentationDelegate?
+        public private(set) var reportDelegate: ReportDelegate?
         public private(set) var translationDelegate: TranslationDelegate?
 
-        // Tuple
-        public private(set) var translationHUDConfig: (appearsAfter: Duration, isModal: Bool) = (.seconds(2), true)
-        public private(set) var translationTimeoutConfig: (duration: Duration, returnsInputs: Bool) = (.seconds(10), true)
+        // Translation Configurations
+        public private(set) var translationHUDConfig: HUDConfig = .init(
+            appearsAfter: .seconds(2),
+            isModal: true
+        )
+        public private(set) var translationTimeoutConfig: TranslationTimeoutConfig = .init(
+            .seconds(10),
+            returnsInputsOnFailure: true
+        )
 
         /* MARK: Init */
 
@@ -57,6 +64,10 @@ public extension AlertKit {
 
         public func registerPresentationDelegate(_ presentationDelegate: PresentationDelegate) {
             self.presentationDelegate = presentationDelegate
+        }
+
+        public func registerReportDelegate(_ reportDelegate: ReportDelegate) {
+            self.reportDelegate = reportDelegate
         }
 
         public func registerTranslationDelegate(_ translationDelegate: TranslationDelegate) {
@@ -73,11 +84,11 @@ public extension AlertKit {
             self.targetLanguageCode = targetLanguageCode
         }
 
-        public func overrideTranslationHUDConfig(_ translationHUDConfig: (Duration, Bool)) {
+        public func overrideTranslationHUDConfig(_ translationHUDConfig: HUDConfig) {
             self.translationHUDConfig = translationHUDConfig
         }
 
-        public func overrideTranslationTimeoutConfig(_ translationTimeoutConfig: (Duration, Bool)) {
+        public func overrideTranslationTimeoutConfig(_ translationTimeoutConfig: TranslationTimeoutConfig) {
             self.translationTimeoutConfig = translationTimeoutConfig
         }
     }
@@ -90,5 +101,7 @@ public extension AlertKit {
         public static let defaultActionTitle = "OK"
         public static let defaultCancelButtonTitle = "Cancel"
         public static let defaultConfirmButtonTitle = "Confirm"
+        public static let defaultDismissButtonTitle = "Dismiss"
+        public static let defaultSendErrorReportButtonTitle = "Send Error Report"
     }
 }

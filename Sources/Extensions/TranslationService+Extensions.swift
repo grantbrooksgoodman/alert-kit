@@ -15,8 +15,11 @@ extension TranslationService: AlertKit.TranslationDelegate {
     public func getTranslations(
         _ inputs: [TranslationInput],
         languagePair: LanguagePair,
-        hud hudConfig: (appearsAfter: Duration, isModal: Bool)? = nil,
-        timeout timeoutConfig: (duration: Duration, returnsInputs: Bool) = (.seconds(10), true)
+        hud hudConfig: AlertKit.HUDConfig? = nil,
+        timeout timeoutConfig: AlertKit.TranslationTimeoutConfig = .init(
+            .seconds(10),
+            returnsInputsOnFailure: true
+        )
     ) async -> Result<[Translation], TranslationError> {
         await getTranslations(
             inputs,
