@@ -14,6 +14,7 @@ import Translator
 // MARK: - Type Aliases
 
 public typealias AKAction = AlertKit.Action
+public typealias AKActionSheet = AlertKit.ActionSheet
 public typealias AKAlert = AlertKit.Alert
 
 typealias Config = AlertKit.Config
@@ -38,6 +39,7 @@ public extension AlertKit {
         public private(set) var targetLanguageCode = Locale.systemLanguageCode
 
         // Delegates
+        public private(set) var loggerDelegate: LoggerDelegate?
         public private(set) var presentationDelegate: PresentationDelegate?
         public private(set) var translationDelegate: TranslationDelegate?
 
@@ -50,6 +52,10 @@ public extension AlertKit {
         private init() {}
 
         // MARK: - Delegate Registration
+
+        public func registerLoggerDelegate(_ loggerDelegate: LoggerDelegate) {
+            self.loggerDelegate = loggerDelegate
+        }
 
         public func registerPresentationDelegate(_ presentationDelegate: PresentationDelegate) {
             self.presentationDelegate = presentationDelegate

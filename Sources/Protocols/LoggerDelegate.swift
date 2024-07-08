@@ -1,5 +1,5 @@
 //
-//  TranslationOptionKey.swift
+//  LoggerDelegate.swift
 //
 //  Created by Grant Brooks Goodman.
 //  Copyright © NEOTechnica Corporation. All rights reserved.
@@ -9,10 +9,7 @@
 import Foundation
 
 public extension AlertKit {
-    enum TranslationOptionKey: Equatable {
-        case actions([AKAction] = [])
-        case all
-        case message
-        case title
+    protocol LoggerDelegate {
+        func log(_ text: String, metadata: [Any])
     }
 }
