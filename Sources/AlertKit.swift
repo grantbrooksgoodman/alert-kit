@@ -10,8 +10,10 @@ import Foundation
 
 // MARK: - Type Aliases
 
+public typealias AKAction = AlertKit.Action
 public typealias AKActionSheet = AlertKit.ActionSheet
 public typealias AKAlert = AlertKit.Alert
+public typealias AKConfirmationAlert = AlertKit.ConfirmationAlert
 public typealias AKErrorAlert = AlertKit.ErrorAlert
 public typealias AKTextInputAlert = AlertKit.TextInputAlert
 

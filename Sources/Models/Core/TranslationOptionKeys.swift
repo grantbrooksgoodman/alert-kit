@@ -8,6 +8,17 @@
 /* Native */
 import Foundation
 
+// MARK: - ActionSheet
+
+public extension AlertKit.ActionSheet {
+    enum TranslationOptionKey: Equatable {
+        case actions([AlertKit.Action] = [])
+        case cancelButtonTitle
+        case message
+        case title
+    }
+}
+
 // MARK: - Alert
 
 public extension AlertKit.Alert {
@@ -18,12 +29,12 @@ public extension AlertKit.Alert {
     }
 }
 
-// MARK: - ActionSheet
+// MARK: - ConfirmationAlert
 
-public extension AlertKit.ActionSheet {
+public extension AlertKit.ConfirmationAlert {
     enum TranslationOptionKey: Equatable {
-        case actions([AlertKit.Action] = [])
         case cancelButtonTitle
+        case confirmButtonTitle
         case message
         case title
     }
