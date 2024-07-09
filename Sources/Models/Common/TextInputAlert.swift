@@ -30,7 +30,7 @@ public extension AlertKit {
         private let attributes: TextFieldAttributes
         private let confirmButtonStyle: ActionStyle
 
-        // MARK: - Init
+        // MARK: - Object Lifecycle
 
         public init(
             title: String? = nil,
@@ -46,6 +46,27 @@ public extension AlertKit {
             self.cancelButtonTitle = cancelButtonTitle
             self.confirmButtonTitle = confirmButtonTitle
             self.confirmButtonStyle = confirmButtonStyle
+        }
+
+        deinit {
+            NotificationCenter.default.removeObserver(
+                self,
+                name: UITextField.textDidChangeNotification,
+                object: nil
+            )
+        }
+
+        // MARK: - On Text Field Change
+
+        public func onTextFieldChange(_ perform: @escaping (UITextField?) -> Void) {
+            NotificationCenter.default.addObserver(
+                forName: UITextField.textDidChangeNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                let alertController = (Config.shared.presentationDelegate?.keyViewController as? UIAlertController)
+                perform(alertController?.textFields?.first)
+            }
         }
 
         // MARK: - Set Attributed Strings
@@ -228,7 +249,12 @@ public extension AlertKit {
                     inputs.append(.init(confirmButtonTitle))
 
                 case .message:
-                    inputs.append(.init(message))
+                    guard let attributedMessage else {
+                        inputs.append(.init(message))
+                        continue
+                    }
+
+                    inputs.append(.init(attributedMessage.string))
 
                 case .placeholderText:
                     guard let placeholderText = attributes.placeholderText else { continue }
@@ -239,8 +265,13 @@ public extension AlertKit {
                     inputs.append(.init(sampleText))
 
                 case .title:
-                    guard let title else { continue }
-                    inputs.append(.init(title))
+                    guard let attributedTitle else {
+                        guard let title else { continue }
+                        inputs.append(.init(title))
+                        continue
+                    }
+
+                    inputs.append(.init(attributedTitle.string))
                 }
             }
 
