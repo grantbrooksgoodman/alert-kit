@@ -17,14 +17,15 @@ public extension AlertKit {
         // MARK: - Properties
 
         // Array
-        public let actions: [Action]
+        private let actions: [Action]
+
+        // NSAttributedString
+        private var attributedMessage: NSAttributedString?
+        private var attributedTitle: NSAttributedString?
 
         // String
-        public let message: String
-        public let title: String?
-
-        private var attributedMessage: AttributedString?
-        private var attributedTitle: AttributedString?
+        private let message: String
+        private let title: String?
 
         // MARK: - Init
 
@@ -41,11 +42,11 @@ public extension AlertKit {
 
         // MARK: - Set Attributed Strings
 
-        public func setAttributedMessage(_ attributedMessage: AttributedString) {
+        public func setAttributedMessage(_ attributedMessage: NSAttributedString) {
             self.attributedMessage = attributedMessage
         }
 
-        public func setAttributedTitle(_ attributedTitle: AttributedString) {
+        public func setAttributedTitle(_ attributedTitle: NSAttributedString) {
             self.attributedTitle = attributedTitle
         }
 
@@ -106,11 +107,11 @@ public extension AlertKit {
             }
 
             if let attributedMessage {
-                alertController.setValue(attributedMessage, forKey: "attributedMessage")
+                alertController.setValue(attributedMessage, forKey: Constants.uiAlertControllerAttributedMessageKeyName)
             }
 
             if let attributedTitle {
-                alertController.setValue(attributedTitle, forKey: "attributedTitle")
+                alertController.setValue(attributedTitle, forKey: Constants.uiAlertControllerAttributedTitleKeyName)
             }
 
             Config.shared.presentationDelegate?.present(alertController)
@@ -151,15 +152,41 @@ public extension AlertKit {
                 }
 
                 var translatedTitle: String?
-                if let title = title {
+                if let title {
                     translatedTitle = translations.firstOutput(matching: title)
                 }
 
-                return .success(.init(
+                let alert: AKAlert = .init(
                     title: translatedTitle,
                     message: translations.firstOutput(matching: message),
                     actions: actions
-                ))
+                )
+
+                if let attributedMessage {
+                    let translatedAttributedMessage = translations.firstOutput(matching: attributedMessage.string)
+                    if translatedAttributedMessage == attributedMessage.string {
+                        alert.setAttributedMessage(attributedMessage)
+                    } else {
+                        alert.setAttributedMessage(.init(
+                            string: translatedAttributedMessage,
+                            attributes: attributedMessage.attributes(at: 0, effectiveRange: nil)
+                        ))
+                    }
+                }
+
+                if let attributedTitle {
+                    let translatedAttributedTitle = translations.firstOutput(matching: attributedTitle.string)
+                    if translatedAttributedTitle == attributedTitle.string {
+                        alert.setAttributedTitle(attributedTitle)
+                    } else {
+                        alert.setAttributedTitle(.init(
+                            string: translatedAttributedTitle,
+                            attributes: attributedTitle.attributes(at: 0, effectiveRange: nil)
+                        ))
+                    }
+                }
+
+                return .success(alert)
 
             case let .failure(error):
                 return .failure(.translationFailed(error.localizedDescription))
@@ -186,7 +213,7 @@ public extension AlertKit {
                         continue
                     }
 
-                    inputs.append(.init(.init(attributedMessage.characters)))
+                    inputs.append(.init(attributedMessage.string))
 
                 case .title:
                     guard let attributedTitle else {
@@ -195,7 +222,7 @@ public extension AlertKit {
                         continue
                     }
 
-                    inputs.append(.init(.init(attributedTitle.characters)))
+                    inputs.append(.init(attributedTitle.string))
                 }
             }
 

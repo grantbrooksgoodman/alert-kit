@@ -105,5 +105,7 @@ public extension AlertKit {
         public static let defaultConfirmButtonTitle = "Confirm"
         public static let defaultDismissButtonTitle = "Dismiss"
         public static let defaultSendErrorReportButtonTitle = "Send Error Report"
+        public static let uiAlertControllerAttributedMessageKeyName = "attributedMessage"
+        public static let uiAlertControllerAttributedTitleKeyName = "attributedTitle"
     }
 }

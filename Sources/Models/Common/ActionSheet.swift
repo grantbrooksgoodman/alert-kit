@@ -13,16 +13,20 @@ import UIKit
 import Translator
 
 public extension AlertKit {
-    struct ActionSheet: Equatable {
+    final class ActionSheet {
         // MARK: - Properties
 
         // Array
-        public let actions: [Action]
+        private let actions: [Action]
+
+        // NSAttributedString
+        private var attributedMessage: NSAttributedString?
+        private var attributedTitle: NSAttributedString?
 
         // String
-        public let cancelButtonTitle: String
-        public let message: String
-        public let title: String?
+        private let cancelButtonTitle: String
+        private let message: String
+        private let title: String?
 
         // MARK: - Init
 
@@ -38,6 +42,16 @@ public extension AlertKit {
             self.message = message
             self.actions = actions
             self.cancelButtonTitle = cancelButtonTitle
+        }
+
+        // MARK: - Set Attributed Strings
+
+        public func setAttributedMessage(_ attributedMessage: NSAttributedString) {
+            self.attributedMessage = attributedMessage
+        }
+
+        public func setAttributedTitle(_ attributedTitle: NSAttributedString) {
+            self.attributedTitle = attributedTitle
         }
 
         // MARK: - Present
@@ -105,6 +119,14 @@ public extension AlertKit {
             }
             alertController.addAction(cancelAction)
 
+            if let attributedMessage {
+                alertController.setValue(attributedMessage, forKey: Constants.uiAlertControllerAttributedMessageKeyName)
+            }
+
+            if let attributedTitle {
+                alertController.setValue(attributedTitle, forKey: Constants.uiAlertControllerAttributedTitleKeyName)
+            }
+
             Config.shared.presentationDelegate?.present(alertController)
         }
 
@@ -147,12 +169,38 @@ public extension AlertKit {
                     translatedTitle = translations.firstOutput(matching: title)
                 }
 
-                return .success(.init(
+                let alert: AKActionSheet = .init(
                     title: translatedTitle,
                     message: translations.firstOutput(matching: message),
                     actions: actions,
                     cancelButtonTitle: translations.firstOutput(matching: cancelButtonTitle)
-                ))
+                )
+
+                if let attributedMessage {
+                    let translatedAttributedMessage = translations.firstOutput(matching: attributedMessage.string)
+                    if translatedAttributedMessage == attributedMessage.string {
+                        alert.setAttributedMessage(attributedMessage)
+                    } else {
+                        alert.setAttributedMessage(.init(
+                            string: translatedAttributedMessage,
+                            attributes: attributedMessage.attributes(at: 0, effectiveRange: nil)
+                        ))
+                    }
+                }
+
+                if let attributedTitle {
+                    let translatedAttributedTitle = translations.firstOutput(matching: attributedTitle.string)
+                    if translatedAttributedTitle == attributedTitle.string {
+                        alert.setAttributedTitle(attributedTitle)
+                    } else {
+                        alert.setAttributedTitle(.init(
+                            string: translatedAttributedTitle,
+                            attributes: attributedTitle.attributes(at: 0, effectiveRange: nil)
+                        ))
+                    }
+                }
+
+                return .success(alert)
 
             case let .failure(error):
                 return .failure(.translationFailed(error.localizedDescription))
@@ -177,11 +225,21 @@ public extension AlertKit {
                     inputs.append(.init(cancelButtonTitle))
 
                 case .message:
-                    inputs.append(.init(message))
+                    guard let attributedMessage else {
+                        inputs.append(.init(message))
+                        continue
+                    }
+
+                    inputs.append(.init(attributedMessage.string))
 
                 case .title:
-                    guard let title else { continue }
-                    inputs.append(.init(title))
+                    guard let attributedTitle else {
+                        guard let title else { continue }
+                        inputs.append(.init(title))
+                        continue
+                    }
+
+                    inputs.append(.init(attributedTitle.string))
                 }
             }
 

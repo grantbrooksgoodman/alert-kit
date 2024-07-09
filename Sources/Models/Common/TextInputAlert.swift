@@ -13,18 +13,22 @@ import UIKit
 import Translator
 
 public extension AlertKit {
-    struct TextInputAlert: Equatable {
+    final class TextInputAlert {
         // MARK: - Properties
 
+        // NSAttributedString
+        private var attributedMessage: NSAttributedString?
+        private var attributedTitle: NSAttributedString?
+
         // String
-        public let cancelButtonTitle: String
-        public let confirmButtonTitle: String
-        public let message: String
-        public let title: String?
+        private let cancelButtonTitle: String
+        private let confirmButtonTitle: String
+        private let message: String
+        private let title: String?
 
         // Other
-        public let attributes: TextFieldAttributes
-        public let confirmButtonStyle: ActionStyle
+        private let attributes: TextFieldAttributes
+        private let confirmButtonStyle: ActionStyle
 
         // MARK: - Init
 
@@ -42,6 +46,16 @@ public extension AlertKit {
             self.cancelButtonTitle = cancelButtonTitle
             self.confirmButtonTitle = confirmButtonTitle
             self.confirmButtonStyle = confirmButtonStyle
+        }
+
+        // MARK: - Set Attributed Strings
+
+        public func setAttributedMessage(_ attributedMessage: NSAttributedString) {
+            self.attributedMessage = attributedMessage
+        }
+
+        public func setAttributedTitle(_ attributedTitle: NSAttributedString) {
+            self.attributedTitle = attributedTitle
         }
 
         // MARK: - Present
@@ -89,7 +103,7 @@ public extension AlertKit {
                 preferredStyle: .alert
             )
 
-            alertController.addTextField { $0.configure(with: attributes) }
+            alertController.addTextField { $0.configure(with: self.attributes) }
 
             let cancelAction = UIAlertAction(
                 title: cancelButtonTitle,
@@ -110,6 +124,14 @@ public extension AlertKit {
 
             if confirmButtonStyle == .preferred || confirmButtonStyle == .destructivePreferred {
                 alertController.preferredAction = confirmAction
+            }
+
+            if let attributedMessage {
+                alertController.setValue(attributedMessage, forKey: Constants.uiAlertControllerAttributedMessageKeyName)
+            }
+
+            if let attributedTitle {
+                alertController.setValue(attributedTitle, forKey: Constants.uiAlertControllerAttributedTitleKeyName)
             }
 
             Config.shared.presentationDelegate?.present(alertController)
@@ -153,14 +175,40 @@ public extension AlertKit {
                     attributes = attributes.replacingSampleText(translations.firstOutput(matching: sampleText))
                 }
 
-                return .success(.init(
+                let alert: AKTextInputAlert = .init(
                     title: translatedTitle,
                     message: translations.firstOutput(matching: message),
                     attributes: attributes,
                     cancelButtonTitle: translations.firstOutput(matching: cancelButtonTitle),
                     confirmButtonTitle: translations.firstOutput(matching: confirmButtonTitle),
                     confirmButtonStyle: confirmButtonStyle
-                ))
+                )
+
+                if let attributedMessage {
+                    let translatedAttributedMessage = translations.firstOutput(matching: attributedMessage.string)
+                    if translatedAttributedMessage == attributedMessage.string {
+                        alert.setAttributedMessage(attributedMessage)
+                    } else {
+                        alert.setAttributedMessage(.init(
+                            string: translatedAttributedMessage,
+                            attributes: attributedMessage.attributes(at: 0, effectiveRange: nil)
+                        ))
+                    }
+                }
+
+                if let attributedTitle {
+                    let translatedAttributedTitle = translations.firstOutput(matching: attributedTitle.string)
+                    if translatedAttributedTitle == attributedTitle.string {
+                        alert.setAttributedTitle(attributedTitle)
+                    } else {
+                        alert.setAttributedTitle(.init(
+                            string: translatedAttributedTitle,
+                            attributes: attributedTitle.attributes(at: 0, effectiveRange: nil)
+                        ))
+                    }
+                }
+
+                return .success(alert)
 
             case let .failure(error):
                 return .failure(.translationFailed(error.localizedDescription))

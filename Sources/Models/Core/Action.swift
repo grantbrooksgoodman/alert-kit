@@ -13,10 +13,11 @@ public extension AlertKit {
         // MARK: - Properties
 
         public let effect: () -> Void
-        public let id = UUID()
         public let isEnabled: Bool
         public let style: ActionStyle
         public let title: String
+
+        private let id = UUID()
 
         // MARK: - Init
 

@@ -20,8 +20,8 @@ public extension AlertKit {
         public private(set) var error: any Errorable
 
         // String
-        public let dismissButtonTitle: String
-        public let sendErrorReportButtonTitle: String
+        private let dismissButtonTitle: String
+        private let sendErrorReportButtonTitle: String
 
         // MARK: - Init
 
