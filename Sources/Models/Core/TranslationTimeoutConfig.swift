@@ -9,7 +9,7 @@
 import Foundation
 
 public extension AlertKit {
-    struct TranslationTimeoutConfig {
+    struct TranslationTimeoutConfig: Codable, Equatable {
         // MARK: - Properties
 
         public let duration: Duration

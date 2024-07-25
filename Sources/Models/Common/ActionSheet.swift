@@ -17,27 +17,26 @@ public extension AlertKit {
         // MARK: - Properties
 
         // Array
-        private let actions: [Action]
+        public let actions: [Action]
 
         // NSAttributedString
         private var attributedMessage: NSAttributedString?
         private var attributedTitle: NSAttributedString?
 
         // String
-        private let cancelButtonTitle: String
-        private let message: String
-        private let title: String?
+        public let cancelButtonTitle: String
+        public let message: String?
+        public let title: String?
 
         // MARK: - Init
 
         public init(
             title: String? = nil,
-            message: String,
+            message: String? = nil,
             actions: [Action],
             cancelButtonTitle: String = Constants.defaultCancelButtonTitle
         ) {
             assert(!actions.isEmpty, "Modal alerts are not supported")
-            assert(!actions.contains(where: { $0.style == .cancel }), "Action sheets include cancel buttons by default")
             self.title = title
             self.message = message
             self.actions = actions
@@ -88,15 +87,24 @@ public extension AlertKit {
 
         @MainActor
         private func present(completion: @escaping () -> Void) {
-            let alertController = UIAlertController(
-                title: title,
-                message: message,
+            var alertController = UIAlertController(
+                title: title?.sanitized,
+                message: message?.sanitized,
                 preferredStyle: .actionSheet
             )
 
+            if message == nil,
+               let title {
+                alertController = .init(
+                    title: nil,
+                    message: title.sanitized,
+                    preferredStyle: .actionSheet
+                )
+            }
+
             for action in actions {
                 let alertAction = UIAlertAction(
-                    title: action.title,
+                    title: action.title.sanitized,
                     style: action.style.uiAlertStyle
                 ) { _ in
                     action.perform()
@@ -111,13 +119,15 @@ public extension AlertKit {
                 }
             }
 
-            let cancelAction = UIAlertAction(
-                title: cancelButtonTitle,
-                style: .cancel
-            ) { _ in
-                completion()
+            if !actions.contains(where: { $0.style == .cancel }) {
+                let cancelAction = UIAlertAction(
+                    title: cancelButtonTitle.sanitized,
+                    style: .cancel
+                ) { _ in
+                    completion()
+                }
+                alertController.addAction(cancelAction)
             }
-            alertController.addAction(cancelAction)
 
             if let attributedMessage {
                 alertController.setValue(attributedMessage, forKey: Constants.uiAlertControllerAttributedMessageKeyName)
@@ -164,6 +174,11 @@ public extension AlertKit {
                     ))
                 }
 
+                var translatedMessage: String?
+                if let message = message {
+                    translatedMessage = translations.firstOutput(matching: message)
+                }
+
                 var translatedTitle: String?
                 if let title = title {
                     translatedTitle = translations.firstOutput(matching: title)
@@ -171,7 +186,7 @@ public extension AlertKit {
 
                 let alert: AKActionSheet = .init(
                     title: translatedTitle,
-                    message: translations.firstOutput(matching: message),
+                    message: translatedMessage,
                     actions: actions,
                     cancelButtonTitle: translations.firstOutput(matching: cancelButtonTitle)
                 )
@@ -226,6 +241,7 @@ public extension AlertKit {
 
                 case .message:
                     guard let attributedMessage else {
+                        guard let message else { continue }
                         inputs.append(.init(message))
                         continue
                     }

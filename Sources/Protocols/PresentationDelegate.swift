@@ -13,11 +13,11 @@ public extension AlertKit {
     protocol PresentationDelegate {
         // MARK: - Properties
 
-        var keyViewController: UIViewController? { get }
+        var frontmostAlertController: UIAlertController? { get }
 
         // MARK: - Methods
 
         @MainActor
-        func present(_ viewController: UIViewController)
+        func present(_ alertController: UIAlertController)
     }
 }

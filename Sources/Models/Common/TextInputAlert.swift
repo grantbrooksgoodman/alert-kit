@@ -16,19 +16,22 @@ public extension AlertKit {
     final class TextInputAlert {
         // MARK: - Properties
 
+        // ActionStyle
+        public let cancelButtonStyle: ActionStyle
+        public let confirmButtonStyle: ActionStyle
+
         // NSAttributedString
         private var attributedMessage: NSAttributedString?
         private var attributedTitle: NSAttributedString?
 
         // String
-        private let cancelButtonTitle: String
-        private let confirmButtonTitle: String
-        private let message: String
-        private let title: String?
+        public let cancelButtonTitle: String
+        public let confirmButtonTitle: String
+        public let message: String
+        public let title: String?
 
-        // Other
-        private let attributes: TextFieldAttributes
-        private let confirmButtonStyle: ActionStyle
+        // TextFieldAttributes
+        public let attributes: TextFieldAttributes
 
         // MARK: - Object Lifecycle
 
@@ -37,6 +40,7 @@ public extension AlertKit {
             message: String,
             attributes: TextFieldAttributes = .init(),
             cancelButtonTitle: String = Constants.defaultCancelButtonTitle,
+            cancelButtonStyle: ActionStyle = .cancel,
             confirmButtonTitle: String = Constants.defaultConfirmButtonTitle,
             confirmButtonStyle: ActionStyle = .preferred
         ) {
@@ -44,6 +48,7 @@ public extension AlertKit {
             self.message = message
             self.attributes = attributes
             self.cancelButtonTitle = cancelButtonTitle
+            self.cancelButtonStyle = cancelButtonStyle
             self.confirmButtonTitle = confirmButtonTitle
             self.confirmButtonStyle = confirmButtonStyle
         }
@@ -64,8 +69,7 @@ public extension AlertKit {
                 object: nil,
                 queue: .main
             ) { _ in
-                let alertController = (Config.shared.presentationDelegate?.keyViewController as? UIAlertController)
-                perform(alertController?.textFields?.first)
+                perform(Config.shared.presentationDelegate?.frontmostAlertController?.textFields?.first)
             }
         }
 
@@ -119,22 +123,22 @@ public extension AlertKit {
         @MainActor
         private func present(completion: @escaping (String?) -> Void) {
             let alertController = UIAlertController(
-                title: title,
-                message: message,
+                title: title?.sanitized,
+                message: message.sanitized,
                 preferredStyle: .alert
             )
 
             alertController.addTextField { $0.configure(with: self.attributes) }
 
             let cancelAction = UIAlertAction(
-                title: cancelButtonTitle,
-                style: .cancel
+                title: cancelButtonTitle.sanitized,
+                style: cancelButtonStyle.uiAlertStyle
             ) { _ in
                 completion(nil)
             }
 
             let confirmAction = UIAlertAction(
-                title: confirmButtonTitle,
+                title: confirmButtonTitle.sanitized,
                 style: confirmButtonStyle.uiAlertStyle
             ) { _ in
                 completion(alertController.textFields?.first?.text)
@@ -143,7 +147,9 @@ public extension AlertKit {
             alertController.addAction(cancelAction)
             alertController.addAction(confirmAction)
 
-            if confirmButtonStyle == .preferred || confirmButtonStyle == .destructivePreferred {
+            if cancelButtonStyle == .preferred || cancelButtonStyle == .destructivePreferred {
+                alertController.preferredAction = cancelAction
+            } else if confirmButtonStyle == .preferred || confirmButtonStyle == .destructivePreferred {
                 alertController.preferredAction = confirmAction
             }
 
@@ -201,6 +207,7 @@ public extension AlertKit {
                     message: translations.firstOutput(matching: message),
                     attributes: attributes,
                     cancelButtonTitle: translations.firstOutput(matching: cancelButtonTitle),
+                    cancelButtonStyle: cancelButtonStyle,
                     confirmButtonTitle: translations.firstOutput(matching: confirmButtonTitle),
                     confirmButtonStyle: confirmButtonStyle
                 )

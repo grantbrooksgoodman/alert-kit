@@ -14,6 +14,6 @@ import Translator
 extension Array where Element == Translation {
     /// - Returns: If a matching output is not found within the array, the provided input string.
     func firstOutput(matching inputString: String) -> String {
-        first(where: { $0.input.value == inputString })?.output ?? inputString
+        (first(where: { $0.input.value == inputString })?.output ?? inputString).sanitized
     }
 }

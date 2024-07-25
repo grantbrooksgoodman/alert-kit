@@ -16,10 +16,7 @@ extension TranslationService: AlertKit.TranslationDelegate {
         _ inputs: [TranslationInput],
         languagePair: LanguagePair,
         hud hudConfig: AlertKit.HUDConfig? = nil,
-        timeout timeoutConfig: AlertKit.TranslationTimeoutConfig = .init(
-            .seconds(10),
-            returnsInputsOnFailure: true
-        )
+        timeout timeoutConfig: AlertKit.TranslationTimeoutConfig = AlertKit.Config.shared.translationTimeoutConfig
     ) async -> Result<[Translation], TranslationError> {
         await getTranslations(
             inputs,

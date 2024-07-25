@@ -17,15 +17,15 @@ public extension AlertKit {
         // MARK: - Properties
 
         // Array
-        private let actions: [Action]
+        public let actions: [Action]
 
         // NSAttributedString
         private var attributedMessage: NSAttributedString?
         private var attributedTitle: NSAttributedString?
 
         // String
-        private let message: String
-        private let title: String?
+        public let message: String
+        public let title: String?
 
         // MARK: - Init
 
@@ -84,14 +84,14 @@ public extension AlertKit {
         @MainActor
         private func present(completion: @escaping () -> Void) {
             let alertController = UIAlertController(
-                title: title,
-                message: message,
+                title: title?.sanitized,
+                message: message.sanitized,
                 preferredStyle: .alert
             )
 
             for action in actions {
                 let alertAction = UIAlertAction(
-                    title: action.title,
+                    title: action.title.sanitized,
                     style: action.style.uiAlertStyle
                 ) { _ in
                     action.perform()

@@ -17,8 +17,8 @@ extension UITextField {
         isSecureTextEntry = attributes.isSecureTextEntry
         keyboardAppearance = attributes.keyboardAppearance
         keyboardType = attributes.keyboardType
-        placeholder = attributes.placeholderText
-        text = attributes.sampleText
+        placeholder = attributes.placeholderText?.sanitized
+        text = attributes.sampleText?.sanitized
         textAlignment = attributes.textAlignment
     }
 }

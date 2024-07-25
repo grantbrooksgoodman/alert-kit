@@ -20,8 +20,8 @@ public extension AlertKit {
         public private(set) var error: any Errorable
 
         // String
-        private let dismissButtonTitle: String
-        private let sendErrorReportButtonTitle: String
+        public let dismissButtonTitle: String
+        public let sendErrorReportButtonTitle: String
 
         // MARK: - Init
 
@@ -70,13 +70,13 @@ public extension AlertKit {
         private func present(completion: @escaping () -> Void) {
             let alertController = UIAlertController(
                 title: nil,
-                message: error.description,
+                message: error.description.sanitized,
                 preferredStyle: .alert
             )
 
             if error.isReportable {
                 let reportAction = UIAlertAction(
-                    title: sendErrorReportButtonTitle,
+                    title: sendErrorReportButtonTitle.sanitized,
                     style: .default
                 ) { _ in
                     Config.shared.reportDelegate?.fileReport(self.error)
@@ -86,12 +86,12 @@ public extension AlertKit {
                 alertController.addAction(reportAction)
                 alertController.preferredAction = reportAction
             } else {
-                alertController.title = error.description
+                alertController.title = error.description.sanitized
                 alertController.message = "\n\(error.id)"
             }
 
             let dismissAction = UIAlertAction(
-                title: dismissButtonTitle,
+                title: dismissButtonTitle.sanitized,
                 style: .cancel
             ) { _ in
                 completion()
