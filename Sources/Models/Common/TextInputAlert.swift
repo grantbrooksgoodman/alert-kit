@@ -12,6 +12,8 @@ import UIKit
 /* Proprietary */
 import Translator
 
+private var _onTextFieldChange: ((UITextField?) -> Void)?
+
 public extension AlertKit {
     final class TextInputAlert {
         // MARK: - Properties
@@ -32,6 +34,9 @@ public extension AlertKit {
 
         // TextFieldAttributes
         public let attributes: TextFieldAttributes
+
+        private weak var observedAlertControllerWindow: UIWindow?
+        private weak var observedTextField: UITextField?
 
         // MARK: - Object Lifecycle
 
@@ -54,11 +59,7 @@ public extension AlertKit {
         }
 
         deinit {
-            NotificationCenter.default.removeObserver(
-                self,
-                name: UITextField.textDidChangeNotification,
-                object: nil
-            )
+            removeTextFieldChangeObserver()
         }
 
         // MARK: - Enable/Disable Actions
@@ -76,13 +77,25 @@ public extension AlertKit {
         // MARK: - On Text Field Change
 
         public func onTextFieldChange(_ perform: @escaping (UITextField?) -> Void) {
-            NotificationCenter.default.addObserver(
-                forName: UITextField.textDidChangeNotification,
-                object: nil,
-                queue: .main
-            ) { _ in
-                perform(Config.shared.presentationDelegate?.presentedAlertControllers.first?.textFields?.first)
-            }
+            _onTextFieldChange = perform
+        }
+
+        private func removeTextFieldChangeObserver() {
+            NotificationCenter.default.removeObserver(
+                self,
+                name: UIWindow.didBecomeHiddenNotification,
+                object: observedAlertControllerWindow
+            )
+
+            NotificationCenter.default.removeObserver(
+                self,
+                name: UITextField.textDidChangeNotification,
+                object: observedTextField
+            )
+
+            observedAlertControllerWindow = nil
+            observedTextField = nil
+            _onTextFieldChange = nil
         }
 
         // MARK: - Set Attributed Strings
@@ -171,6 +184,27 @@ public extension AlertKit {
 
             if let attributedTitle {
                 alertController.setValue(attributedTitle, forKey: Constants.uiAlertControllerAttributedTitleKeyName)
+            }
+
+            if let onTextFieldChange = _onTextFieldChange {
+                observedAlertControllerWindow = alertController.view.window
+                observedTextField = alertController.textFields?.first
+
+                NotificationCenter.default.addObserver(
+                    forName: UIWindow.didBecomeHiddenNotification,
+                    object: observedAlertControllerWindow,
+                    queue: .main
+                ) { [weak self] _ in // FIXME: Possible retain cycle here.
+                    self?.removeTextFieldChangeObserver()
+                }
+
+                NotificationCenter.default.addObserver(
+                    forName: UITextField.textDidChangeNotification,
+                    object: observedTextField,
+                    queue: .main
+                ) { _ in
+                    onTextFieldChange(alertController.textFields?.first)
+                }
             }
 
             Config.shared.presentationDelegate?.present(alertController)
