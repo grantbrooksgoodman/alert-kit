@@ -12,7 +12,7 @@ public extension AlertKit {
     protocol LoggerDelegate {
         // MARK: - Properties
 
-        var reportsErrorsAutomatically: Bool { get set }
+        var reportsErrorsAutomatically: Bool { get }
 
         // MARK: - Methods
 
