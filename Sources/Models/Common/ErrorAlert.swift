@@ -86,7 +86,8 @@ public extension AlertKit {
                 preferredStyle: .alert
             )
 
-            if error.isReportable {
+            if error.isReportable,
+               Config.shared.loggerDelegate?.reportsErrorsAutomatically == false {
                 let reportAction = UIAlertAction(
                     title: sendErrorReportButtonTitle.sanitized,
                     style: .default
