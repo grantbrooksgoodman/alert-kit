@@ -10,6 +10,18 @@ import Foundation
 
 public extension AlertKit {
     protocol LoggerDelegate {
-        func log(_ text: String, metadata: [Any])
+        // MARK: - Properties
+
+        var reportsErrorsAutomatically: Bool { get }
+
+        // MARK: - Methods
+
+        func log(
+            _ text: String,
+            sender: Any,
+            fileName: String,
+            function: String,
+            line: Int
+        )
     }
 }

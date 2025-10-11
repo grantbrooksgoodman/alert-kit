@@ -139,7 +139,10 @@ public extension AlertKit {
             case let .failure(error):
                 Config.shared.loggerDelegate?.log(
                     error.localizedDescription,
-                    metadata: [self, #file, #function, #line]
+                    sender: self,
+                    fileName: #fileID,
+                    function: #function,
+                    line: #line
                 )
                 return await present(translating: [])
             }
