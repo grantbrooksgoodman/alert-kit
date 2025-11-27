@@ -16,17 +16,37 @@ public extension AlertKit {
     final class ActionSheet {
         // MARK: - Properties
 
-        // Array
         public let actions: [Action]
+        public let cancelButtonTitle: String
+        public let message: String?
+        public let sourceItem: SourceItem?
+        public let title: String?
 
-        // AttributedStringConfig
         private var messageAttributes: AttributedStringConfig?
         private var titleAttributes: AttributedStringConfig?
 
-        // String
-        public let cancelButtonTitle: String
-        public let message: String?
-        public let title: String?
+        // MARK: - Computed Properties
+
+        private var sourceItemView: UIView? {
+            guard let inspectionDelegate = Config.shared.inspectionDelegate,
+                  let sourceItem else { return nil }
+
+            switch sourceItem {
+            case let .custom(customSourceItem):
+                switch customSourceItem {
+                case let .string(string): return inspectionDelegate.sourceItem(string.hashValue)
+                case let .view(view): return view
+                }
+
+            case .message:
+                guard let message else { return nil }
+                return inspectionDelegate.sourceItem(message.hashValue)
+
+            case .title:
+                guard let title else { return nil }
+                return inspectionDelegate.sourceItem(title.hashValue)
+            }
+        }
 
         // MARK: - Init
 
@@ -34,13 +54,15 @@ public extension AlertKit {
             title: String? = nil,
             message: String? = nil,
             actions: [Action],
-            cancelButtonTitle: String = Constants.defaultCancelButtonTitle
+            cancelButtonTitle: String = Constants.defaultCancelButtonTitle,
+            sourceItem: SourceItem? = nil
         ) {
             assert(!actions.isEmpty, "Modal alerts are not supported")
             self.title = title
             self.message = message
             self.actions = actions
             self.cancelButtonTitle = cancelButtonTitle
+            self.sourceItem = sourceItem
         }
 
         // MARK: - Enable/Disable Actions
@@ -160,6 +182,7 @@ public extension AlertKit {
                 )
             }
 
+            alertController.popoverPresentationController?.sourceItem = sourceItemView
             Config.shared.presentationDelegate?.present(alertController)
         }
 
@@ -211,7 +234,8 @@ public extension AlertKit {
                     title: translatedTitle,
                     message: translatedMessage,
                     actions: actions,
-                    cancelButtonTitle: translations.firstOutput(matching: cancelButtonTitle)
+                    cancelButtonTitle: translations.firstOutput(matching: cancelButtonTitle),
+                    sourceItem: sourceItem
                 )
 
                 if let messageAttributes {

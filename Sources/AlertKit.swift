@@ -39,6 +39,7 @@ public extension AlertKit {
         public private(set) var targetLanguageCode = Locale.systemLanguageCode
 
         // Delegates
+        public private(set) var inspectionDelegate: InspectionDelegate?
         public private(set) var loggerDelegate: LoggerDelegate?
         public private(set) var presentationDelegate: PresentationDelegate?
         public private(set) var reportDelegate: ReportDelegate?
@@ -59,6 +60,10 @@ public extension AlertKit {
         private init() {}
 
         /* MARK: Delegate Registration */
+
+        public func registerInspectionDelegate(_ inspectionDelegate: InspectionDelegate) {
+            self.inspectionDelegate = inspectionDelegate
+        }
 
         public func registerLoggerDelegate(_ loggerDelegate: LoggerDelegate) {
             self.loggerDelegate = loggerDelegate
