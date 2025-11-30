@@ -13,17 +13,14 @@ public extension AlertKit {
     struct TextFieldAttributes: Equatable {
         // MARK: - Properties
 
-        // String
-        public let placeholderText: String?
-        public let sampleText: String?
-
-        // Other
         public let capitalizationType: UITextAutocapitalizationType
         public let clearButtonMode: UITextField.ViewMode
         public let correctionType: UITextAutocorrectionType
         public let isSecureTextEntry: Bool
         public let keyboardAppearance: UIKeyboardAppearance
         public let keyboardType: UIKeyboardType
+        public let placeholderText: String?
+        public let sampleText: String?
         public let textAlignment: NSTextAlignment
 
         // MARK: - Init

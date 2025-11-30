@@ -16,16 +16,12 @@ public extension AlertKit {
     final class Alert {
         // MARK: - Properties
 
-        // Array
         public let actions: [Action]
-
-        // AttributedStringConfig
-        private var messageAttributes: AttributedStringConfig?
-        private var titleAttributes: AttributedStringConfig?
-
-        // String
         public let message: String?
         public let title: String?
+
+        private var messageAttributes: AttributedStringConfig?
+        private var titleAttributes: AttributedStringConfig?
 
         // MARK: - Init
 
