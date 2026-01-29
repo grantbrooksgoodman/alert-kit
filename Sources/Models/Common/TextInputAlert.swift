@@ -18,22 +18,16 @@ public extension AlertKit {
     final class TextInputAlert {
         // MARK: - Properties
 
-        // ActionStyle
+        public let attributes: TextFieldAttributes
         public let cancelButtonStyle: ActionStyle
-        public let confirmButtonStyle: ActionStyle
-
-        // AttributedStringConfig
-        private var messageAttributes: AttributedStringConfig?
-        private var titleAttributes: AttributedStringConfig?
-
-        // String
         public let cancelButtonTitle: String
+        public let confirmButtonStyle: ActionStyle
         public let confirmButtonTitle: String
         public let message: String
         public let title: String?
 
-        // TextFieldAttributes
-        public let attributes: TextFieldAttributes
+        private var messageAttributes: AttributedStringConfig?
+        private var titleAttributes: AttributedStringConfig?
 
         private weak var observedAlertControllerWindow: UIWindow?
         private weak var observedTextField: UITextField?

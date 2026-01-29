@@ -16,12 +16,10 @@ public extension AlertKit {
     final class ErrorAlert {
         // MARK: - Properties
 
-        // Errorable
-        public private(set) var error: any Errorable
-
-        // String
         public let dismissButtonTitle: String
         public let sendErrorReportButtonTitle: String
+
+        public private(set) var error: any Errorable
 
         // MARK: - Init
 

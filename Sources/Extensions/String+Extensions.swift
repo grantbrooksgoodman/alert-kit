@@ -12,7 +12,9 @@ extension String {
     // MARK: - Properties
 
     var sanitized: String {
-        replacingOccurrences(of: "⌘", with: "").replacingOccurrences(of: "⁂", with: "")
+        replacingOccurrences(of: "⌘", with: "")
+            .replacingOccurrences(of: "⁂", with: "")
+            .replacingOccurrences(of: "※", with: "")
     }
 
     // MARK: - Methods

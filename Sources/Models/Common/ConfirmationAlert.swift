@@ -16,19 +16,15 @@ public extension AlertKit {
     final class ConfirmationAlert {
         // MARK: - Properties
 
-        // ActionStyle
         public let cancelButtonStyle: ActionStyle
-        public let confirmButtonStyle: ActionStyle
-
-        // AttributedStringConfig
-        private var messageAttributes: AttributedStringConfig?
-        private var titleAttributes: AttributedStringConfig?
-
-        // String
         public let cancelButtonTitle: String
+        public let confirmButtonStyle: ActionStyle
         public let confirmButtonTitle: String
         public let message: String
         public let title: String?
+
+        private var messageAttributes: AttributedStringConfig?
+        private var titleAttributes: AttributedStringConfig?
 
         // MARK: - Init
 
