@@ -28,6 +28,7 @@ public struct AlertKit {
 // MARK: - Config
 
 public extension AlertKit {
+    @MainActor
     final class Config {
         /* MARK: Properties */
 

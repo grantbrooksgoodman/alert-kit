@@ -12,10 +12,9 @@ import UIKit
 /* Proprietary */
 import Translator
 
-private var _onTextFieldChange: ((UITextField?) -> Void)?
-
 public extension AlertKit {
-    final class TextInputAlert {
+    @MainActor
+    final class TextInputAlert: Sendable {
         // MARK: - Properties
 
         public let attributes: TextFieldAttributes
@@ -27,7 +26,10 @@ public extension AlertKit {
         public let title: String?
 
         private var messageAttributes: AttributedStringConfig?
+        private var textDidChangeObserver: NSObjectProtocol?
         private var titleAttributes: AttributedStringConfig?
+        private var _onTextFieldChange: (@MainActor (UITextField?) -> Void)?
+        private var windowDidBecomeHiddenObserver: NSObjectProtocol?
 
         private weak var observedAlertControllerWindow: UIWindow?
         private weak var observedTextField: UITextField?
@@ -52,6 +54,7 @@ public extension AlertKit {
             self.confirmButtonStyle = confirmButtonStyle
         }
 
+        @MainActor
         deinit {
             removeTextFieldChangeObserver()
         }
@@ -70,22 +73,22 @@ public extension AlertKit {
 
         // MARK: - On Text Field Change
 
-        public func onTextFieldChange(_ perform: @escaping (UITextField?) -> Void) {
+        public func onTextFieldChange(
+            _ perform: @escaping @MainActor (UITextField?) -> Void
+        ) {
             _onTextFieldChange = perform
         }
 
         private func removeTextFieldChangeObserver() {
-            NotificationCenter.default.removeObserver(
-                self,
-                name: UIWindow.didBecomeHiddenNotification,
-                object: observedAlertControllerWindow
-            )
+            if let windowDidBecomeHiddenObserver {
+                NotificationCenter.default.removeObserver(windowDidBecomeHiddenObserver)
+                self.windowDidBecomeHiddenObserver = nil
+            }
 
-            NotificationCenter.default.removeObserver(
-                self,
-                name: UITextField.textDidChangeNotification,
-                object: observedTextField
-            )
+            if let textDidChangeObserver {
+                NotificationCenter.default.removeObserver(textDidChangeObserver)
+                self.textDidChangeObserver = nil
+            }
 
             observedAlertControllerWindow = nil
             observedTextField = nil
@@ -191,28 +194,35 @@ public extension AlertKit {
                 )
             }
 
-            if let onTextFieldChange = _onTextFieldChange {
-                observedAlertControllerWindow = alertController.view.window
-                observedTextField = alertController.textFields?.first
+            Config.shared.presentationDelegate?.present(alertController)
+            guard let onTextFieldChange = _onTextFieldChange else { return }
 
-                NotificationCenter.default.addObserver(
-                    forName: UIWindow.didBecomeHiddenNotification,
-                    object: observedAlertControllerWindow,
-                    queue: .main
-                ) { [weak self] _ in // FIXME: Possible retain cycle here.
-                    self?.removeTextFieldChangeObserver()
-                }
-
-                NotificationCenter.default.addObserver(
-                    forName: UITextField.textDidChangeNotification,
-                    object: observedTextField,
-                    queue: .main
-                ) { _ in
-                    onTextFieldChange(alertController.textFields?.first)
+            observedTextField = alertController.textFields?.first
+            textDidChangeObserver = NotificationCenter.default.addObserver(
+                forName: UITextField.textDidChangeNotification,
+                object: observedTextField,
+                queue: .main
+            ) { [weak alertController] _ in
+                MainActor.assumeIsolated {
+                    onTextFieldChange(alertController?.textFields?.first)
                 }
             }
 
-            Config.shared.presentationDelegate?.present(alertController)
+            DispatchQueue.main.async { [weak self, weak alertController] in
+                guard let self,
+                      let window = alertController?.view.window else { return }
+
+                self.observedAlertControllerWindow = window
+                self.windowDidBecomeHiddenObserver = NotificationCenter.default.addObserver(
+                    forName: UIWindow.didBecomeHiddenNotification,
+                    object: window,
+                    queue: .main
+                ) { [weak self] _ in
+                    MainActor.assumeIsolated {
+                        self?.removeTextFieldChangeObserver()
+                    }
+                }
+            }
         }
 
         // MARK: - Translate

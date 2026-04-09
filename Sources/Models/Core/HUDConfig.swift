@@ -9,7 +9,7 @@
 import Foundation
 
 public extension AlertKit {
-    struct HUDConfig: Codable, Equatable {
+    struct HUDConfig: Codable, Equatable, Sendable {
         // MARK: - Properties
 
         public let appearsAfter: Duration

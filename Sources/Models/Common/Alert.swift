@@ -13,7 +13,8 @@ import UIKit
 import Translator
 
 public extension AlertKit {
-    final class Alert {
+    @MainActor
+    final class Alert: Sendable {
         // MARK: - Properties
 
         public let actions: [Action]

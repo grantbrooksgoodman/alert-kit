@@ -9,10 +9,10 @@
 import Foundation
 
 public extension AlertKit {
-    struct Action: Equatable {
+    struct Action: Equatable, Sendable {
         // MARK: - Properties
 
-        public let effect: () -> Void
+        public let effect: @Sendable () -> Void
         public let isEnabled: Bool
         public let style: ActionStyle
         public let title: String
@@ -25,7 +25,7 @@ public extension AlertKit {
             _ title: String,
             isEnabled: Bool = true,
             style: ActionStyle = .default,
-            effect: @escaping () -> Void
+            effect: @escaping @Sendable () -> Void
         ) {
             self.title = title
             self.isEnabled = isEnabled

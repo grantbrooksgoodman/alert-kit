@@ -11,7 +11,7 @@ import Foundation
 // MARK: - ActionSheet
 
 public extension AlertKit.ActionSheet {
-    enum TranslationOptionKey: Equatable {
+    enum TranslationOptionKey: Equatable, Sendable {
         case actions([AlertKit.Action] = [])
         case cancelButtonTitle
         case message
@@ -22,7 +22,7 @@ public extension AlertKit.ActionSheet {
 // MARK: - Alert
 
 public extension AlertKit.Alert {
-    enum TranslationOptionKey: Equatable {
+    enum TranslationOptionKey: Equatable, Sendable {
         case actions([AlertKit.Action] = [])
         case message
         case title
@@ -32,7 +32,7 @@ public extension AlertKit.Alert {
 // MARK: - ConfirmationAlert
 
 public extension AlertKit.ConfirmationAlert {
-    enum TranslationOptionKey: Equatable {
+    enum TranslationOptionKey: Equatable, Sendable {
         case cancelButtonTitle
         case confirmButtonTitle
         case message
@@ -43,7 +43,7 @@ public extension AlertKit.ConfirmationAlert {
 // MARK: - ErrorAlert
 
 public extension AlertKit.ErrorAlert {
-    enum TranslationOptionKey: Equatable {
+    enum TranslationOptionKey: Equatable, Sendable {
         case dismissButtonTitle
         case errorDescription
         case sendErrorReportButtonTitle

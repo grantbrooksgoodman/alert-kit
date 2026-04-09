@@ -9,10 +9,10 @@
 import Foundation
 
 public extension AlertKit {
-    struct AttributedStringConfig {
+    struct AttributedStringConfig: @unchecked Sendable {
         // MARK: - Types
 
-        public struct StringAttributes {
+        public struct StringAttributes: @unchecked Sendable {
             /* MARK: Properties */
 
             public let attributes: [NSAttributedString.Key: Any]

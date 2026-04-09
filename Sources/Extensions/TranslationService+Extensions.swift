@@ -11,6 +11,7 @@ import Foundation
 /* Proprietary */
 import Translator
 
+@MainActor
 extension TranslationService: AlertKit.TranslationDelegate {
     public func getTranslations(
         _ inputs: [TranslationInput],

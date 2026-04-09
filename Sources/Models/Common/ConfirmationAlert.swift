@@ -13,7 +13,8 @@ import UIKit
 import Translator
 
 public extension AlertKit {
-    final class ConfirmationAlert {
+    @MainActor
+    final class ConfirmationAlert: Sendable {
         // MARK: - Properties
 
         public let cancelButtonStyle: ActionStyle

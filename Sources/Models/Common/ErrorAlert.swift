@@ -13,7 +13,8 @@ import UIKit
 import Translator
 
 public extension AlertKit {
-    final class ErrorAlert {
+    @MainActor
+    final class ErrorAlert: Sendable {
         // MARK: - Properties
 
         public let dismissButtonTitle: String

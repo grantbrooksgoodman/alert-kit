@@ -10,7 +10,7 @@ import Foundation
 import UIKit
 
 public extension AlertKit {
-    enum ActionStyle: Codable, Equatable {
+    enum ActionStyle: Codable, Equatable, Sendable {
         // MARK: - Cases
 
         case cancel

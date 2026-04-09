@@ -13,6 +13,7 @@ import Translator
 
 public extension AlertKit {
     protocol TranslationDelegate {
+        @MainActor
         func getTranslations(
             _ inputs: [TranslationInput],
             languagePair: LanguagePair,
