@@ -8,11 +8,12 @@
 /* Native */
 import Foundation
 
+@MainActor
 public extension AlertKit {
-    struct AttributedStringConfig: @unchecked Sendable {
+    struct AttributedStringConfig {
         // MARK: - Types
 
-        public struct StringAttributes: @unchecked Sendable {
+        public struct StringAttributes {
             /* MARK: Properties */
 
             public let attributes: [NSAttributedString.Key: Any]

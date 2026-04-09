@@ -12,8 +12,8 @@ import Foundation
 import Translator
 
 public extension AlertKit {
+    @MainActor
     protocol TranslationDelegate {
-        @MainActor
         func getTranslations(
             _ inputs: [TranslationInput],
             languagePair: LanguagePair,

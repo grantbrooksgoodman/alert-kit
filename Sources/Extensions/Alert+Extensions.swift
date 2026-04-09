@@ -9,6 +9,7 @@
 import Foundation
 import UIKit
 
+@MainActor
 extension AlertKit.Alert {
     // MARK: - Properties
 
@@ -16,12 +17,10 @@ extension AlertKit.Alert {
 
     // MARK: - Methods
 
-    @MainActor
     static func enableAction(at index: Int) {
         presentedAlertControllers.forEach { $0.actions.itemAt(index)?.isEnabled = true }
     }
 
-    @MainActor
     static func disableAction(at index: Int) {
         presentedAlertControllers.forEach { $0.actions.itemAt(index)?.isEnabled = false }
     }

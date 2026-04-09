@@ -10,6 +10,7 @@ import Foundation
 import UIKit
 
 public extension AlertKit {
+    @MainActor
     protocol InspectionDelegate {
         func sourceItem(_ tag: Int) -> UIView?
     }

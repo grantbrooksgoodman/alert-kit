@@ -9,6 +9,7 @@
 import Foundation
 
 public extension AlertKit {
+    @MainActor
     protocol LoggerDelegate {
         // MARK: - Properties
 

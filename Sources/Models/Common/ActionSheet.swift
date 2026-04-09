@@ -14,7 +14,7 @@ import Translator
 
 public extension AlertKit {
     @MainActor
-    final class ActionSheet: Sendable {
+    final class ActionSheet {
         // MARK: - Properties
 
         public let actions: [Action]
@@ -68,12 +68,10 @@ public extension AlertKit {
 
         // MARK: - Enable/Disable Actions
 
-        @MainActor
         public func disableAction(at index: Int) {
             Alert.disableAction(at: index)
         }
 
-        @MainActor
         public func enableAction(at index: Int) {
             Alert.enableAction(at: index)
         }
@@ -90,7 +88,6 @@ public extension AlertKit {
 
         // MARK: - Present
 
-        @MainActor
         public func present(
             translating keys: [TranslationOptionKey] = [
                 .actions(),
@@ -123,7 +120,6 @@ public extension AlertKit {
             }
         }
 
-        @MainActor
         private func present(completion: @escaping () -> Void) {
             var alertController = UIAlertController(
                 title: title?.sanitized,

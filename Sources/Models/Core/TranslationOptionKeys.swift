@@ -53,7 +53,7 @@ public extension AlertKit.ErrorAlert {
 // MARK: - TextInputAlert
 
 public extension AlertKit.TextInputAlert {
-    enum TranslationOptionKey: Equatable {
+    enum TranslationOptionKey: Equatable, Sendable {
         case cancelButtonTitle
         case confirmButtonTitle
         case message

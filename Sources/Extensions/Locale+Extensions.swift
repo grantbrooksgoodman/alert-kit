@@ -8,8 +8,8 @@
 /* Native */
 import Foundation
 
+@MainActor
 extension Locale {
-    @MainActor
     static var systemLanguageCode: String {
         let bundleLanguage = Bundle.main.preferredLocalizations.first
         let localeLanguage = Locale.preferredLanguages.first

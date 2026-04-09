@@ -9,6 +9,7 @@
 import Foundation
 
 public extension AlertKit {
+    @MainActor
     protocol ReportDelegate {
         func fileReport(_ error: any Errorable)
     }

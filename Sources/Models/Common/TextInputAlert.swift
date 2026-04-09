@@ -14,7 +14,7 @@ import Translator
 
 public extension AlertKit {
     @MainActor
-    final class TextInputAlert: Sendable {
+    final class TextInputAlert {
         // MARK: - Properties
 
         public let attributes: TextFieldAttributes
@@ -61,12 +61,10 @@ public extension AlertKit {
 
         // MARK: - Enable/Disable Actions
 
-        @MainActor
         public func disableAction(at index: Int) {
             Alert.disableAction(at: index)
         }
 
-        @MainActor
         public func enableAction(at index: Int) {
             Alert.enableAction(at: index)
         }
@@ -108,7 +106,6 @@ public extension AlertKit {
         // MARK: - Present
 
         /// - Returns: On confirmation, the text entered into the text field.
-        @MainActor
         public func present(
             translating keys: [TranslationOptionKey] = [
                 .cancelButtonTitle,
@@ -145,7 +142,6 @@ public extension AlertKit {
             }
         }
 
-        @MainActor
         private func present(completion: @escaping (String?) -> Void) {
             let alertController = UIAlertController(
                 title: title?.sanitized,
@@ -203,12 +199,12 @@ public extension AlertKit {
                 object: observedTextField,
                 queue: .main
             ) { [weak alertController] _ in
-                MainActor.assumeIsolated {
+                Task { @MainActor in
                     onTextFieldChange(alertController?.textFields?.first)
                 }
             }
 
-            DispatchQueue.main.async { [weak self, weak alertController] in
+            DispatchQueue.main.async { [weak alertController, weak self] in
                 guard let self,
                       let window = alertController?.view.window else { return }
 
@@ -218,7 +214,7 @@ public extension AlertKit {
                     object: window,
                     queue: .main
                 ) { [weak self] _ in
-                    MainActor.assumeIsolated {
+                    Task { @MainActor in
                         self?.removeTextFieldChangeObserver()
                     }
                 }
@@ -275,6 +271,10 @@ public extension AlertKit {
 
                 if let messageAttributes {
                     alert.setMessageAttributes(messageAttributes)
+                }
+
+                if let onTextFieldChange = _onTextFieldChange {
+                    alert.onTextFieldChange(onTextFieldChange)
                 }
 
                 if let titleAttributes {

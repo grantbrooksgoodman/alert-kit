@@ -10,6 +10,7 @@ import Foundation
 import UIKit
 
 public extension AlertKit {
+    @MainActor
     protocol PresentationDelegate {
         // MARK: - Properties
 
@@ -17,7 +18,6 @@ public extension AlertKit {
 
         // MARK: - Methods
 
-        @MainActor
         func present(_ alertController: UIAlertController)
     }
 }

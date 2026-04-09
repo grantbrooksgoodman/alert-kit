@@ -14,7 +14,7 @@ import Translator
 
 public extension AlertKit {
     @MainActor
-    final class ErrorAlert: Sendable {
+    final class ErrorAlert {
         // MARK: - Properties
 
         public let dismissButtonTitle: String
@@ -36,19 +36,16 @@ public extension AlertKit {
 
         // MARK: - Enable/Disable Actions
 
-        @MainActor
         public func disableAction(at index: Int) {
             Alert.disableAction(at: index)
         }
 
-        @MainActor
         public func enableAction(at index: Int) {
             Alert.enableAction(at: index)
         }
 
         // MARK: - Present
 
-        @MainActor
         public func present(
             translating keys: [TranslationOptionKey] = [
                 .dismissButtonTitle,
@@ -80,7 +77,6 @@ public extension AlertKit {
             }
         }
 
-        @MainActor
         private func present(completion: @escaping () -> Void) {
             let alertController = UIAlertController(
                 title: nil,

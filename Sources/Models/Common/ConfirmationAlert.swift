@@ -14,7 +14,7 @@ import Translator
 
 public extension AlertKit {
     @MainActor
-    final class ConfirmationAlert: Sendable {
+    final class ConfirmationAlert {
         // MARK: - Properties
 
         public let cancelButtonStyle: ActionStyle
@@ -47,12 +47,10 @@ public extension AlertKit {
 
         // MARK: - Enable/Disable Actions
 
-        @MainActor
         public func disableAction(at index: Int) {
             Alert.disableAction(at: index)
         }
 
-        @MainActor
         public func enableAction(at index: Int) {
             Alert.enableAction(at: index)
         }
@@ -69,7 +67,6 @@ public extension AlertKit {
 
         // MARK: - Present
 
-        @MainActor
         public func present(
             translating keys: [TranslationOptionKey] = [
                 .cancelButtonTitle,
@@ -104,7 +101,6 @@ public extension AlertKit {
             }
         }
 
-        @MainActor
         private func present(completion: @escaping (Bool) -> Void) {
             let alertController = UIAlertController(
                 title: title?.sanitized,
