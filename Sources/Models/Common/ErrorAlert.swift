@@ -17,8 +17,8 @@ public extension AlertKit {
     final class ErrorAlert {
         // MARK: - Properties
 
-        public let dismissButtonTitle: String
-        public let sendErrorReportButtonTitle: String
+        private let dismissButtonTitle: String
+        private let sendErrorReportButtonTitle: String
 
         public private(set) var error: any Errorable
 
@@ -53,28 +53,17 @@ public extension AlertKit {
                 .sendErrorReportButtonTitle,
             ]
         ) async {
-            guard !keys.isEmpty else {
-                return await withCheckedContinuation { continuation in
-                    present { continuation.resume() }
-                }
-            }
-
-            let translateResult = await translate(keys)
-
-            switch translateResult {
-            case let .success(alert):
-                return await alert.present(translating: [])
-
-            case let .failure(error):
-                Config.shared.loggerDelegate?.log(
-                    error.localizedDescription,
-                    sender: self,
-                    fileName: #fileID,
-                    function: #function,
-                    line: #line
-                )
-                return await present(translating: [])
-            }
+            await AlertKit.presentWithTranslation(
+                shouldTranslate: !keys.isEmpty,
+                presentDirectly: {
+                    await withCheckedContinuation { continuation in
+                        present { continuation.resume() }
+                    }
+                },
+                translate: { await translate(keys) },
+                presentTranslated: { await $0.present(translating: []) },
+                sender: self
+            )
         }
 
         private func present(completion: @escaping () -> Void) {
@@ -85,12 +74,12 @@ public extension AlertKit {
             )
 
             if error.isReportable,
-               Config.shared.loggerDelegate?.reportsErrorsAutomatically == false {
+               AlertKit.config.loggerDelegate?.reportsErrorsAutomatically == false {
                 let reportAction = UIAlertAction(
                     title: sendErrorReportButtonTitle.sanitized,
                     style: .default
                 ) { _ in
-                    Config.shared.reportDelegate?.fileReport(self.error)
+                    AlertKit.config.reportDelegate?.fileReport(self.error)
                     completion()
                 }
 
@@ -109,29 +98,17 @@ public extension AlertKit {
             }
             alertController.addAction(dismissAction)
 
-            Config.shared.presentationDelegate?.present(alertController)
+            AlertKit.config.presentationDelegate?.present(alertController)
         }
 
         // MARK: - Translate
 
         private func translate(_ keys: [TranslationOptionKey]) async -> Result<ErrorAlert, Error> {
-            let translator = Config.shared.translationDelegate ?? TranslationService.shared
-
-            var uniqueKeys = [TranslationOptionKey]()
-            for key in keys where !uniqueKeys.contains(key) {
-                uniqueKeys.append(key)
-            }
-
+            let uniqueKeys = keys.unique
             guard !uniqueKeys.isEmpty else { return .success(self) }
 
-            let getTranslationsResult = await translator.getTranslations(
-                translationInputs(for: uniqueKeys),
-                languagePair: .init(
-                    from: Config.shared.sourceLanguageCode,
-                    to: Config.shared.targetLanguageCode
-                ),
-                hud: Config.shared.translationHUDConfig,
-                timeout: Config.shared.translationTimeoutConfig
+            let getTranslationsResult = await AlertKit.getTranslations(
+                for: translationInputs(for: uniqueKeys)
             )
 
             switch getTranslationsResult {
@@ -144,7 +121,7 @@ public extension AlertKit {
                 ))
 
             case let .failure(error):
-                return .failure(.translationFailed(error.localizedDescription))
+                return .failure(error)
             }
         }
 
@@ -165,12 +142,7 @@ public extension AlertKit {
                 }
             }
 
-            var uniqueInputs = [TranslationInput]()
-            for input in inputs where !uniqueInputs.contains(input) {
-                uniqueInputs.append(input)
-            }
-
-            return uniqueInputs.filter { $0.value != Constants.defaultActionTitle }
+            return inputs.nonDefaultUnique
         }
     }
 }

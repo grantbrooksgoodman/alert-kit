@@ -16,8 +16,8 @@ public extension AlertKit {
         public struct StringAttributes {
             /* MARK: Properties */
 
-            public let attributes: [NSAttributedString.Key: Any]
-            public let stringRanges: [String]
+            let attributes: [NSAttributedString.Key: Any]
+            let stringRanges: [String]
 
             /* MARK: Init */
 
@@ -33,8 +33,8 @@ public extension AlertKit {
 
         // MARK: - Properties
 
-        public let primaryAttributes: [NSAttributedString.Key: Any]
-        public let secondaryAttributes: [StringAttributes]?
+        let primaryAttributes: [NSAttributedString.Key: Any]
+        let secondaryAttributes: [StringAttributes]?
 
         // MARK: - Init
 
@@ -42,7 +42,11 @@ public extension AlertKit {
             _ primaryAttributes: [NSAttributedString.Key: Any],
             secondaryAttributes: [StringAttributes]? = nil
         ) {
-            assert(!primaryAttributes.isEmpty, "Instantiated AttributedStringConfig with empty primaryAttributes dictionary")
+            assert(
+                !primaryAttributes.isEmpty,
+                "Instantiated AttributedStringConfig with empty primaryAttributes dictionary"
+            )
+
             self.primaryAttributes = primaryAttributes
             self.secondaryAttributes = secondaryAttributes
         }

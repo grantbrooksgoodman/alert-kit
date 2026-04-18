@@ -17,12 +17,11 @@ public typealias AKConfirmationAlert = AlertKit.ConfirmationAlert
 public typealias AKErrorAlert = AlertKit.ErrorAlert
 public typealias AKTextInputAlert = AlertKit.TextInputAlert
 
-typealias Config = AlertKit.Config
-
 // MARK: - AlertKit
 
-public struct AlertKit {
-    private init() {}
+@MainActor
+public enum AlertKit {
+    public static let config = Config.shared
 }
 
 // MARK: - Config
@@ -32,21 +31,13 @@ public extension AlertKit {
     final class Config {
         /* MARK: Properties */
 
-        // Singleton
-        public static let shared = Config()
-
-        // String
-        public private(set) var sourceLanguageCode = "en"
-        public private(set) var targetLanguageCode = Locale.systemLanguageCode
-
-        // Delegates
         public private(set) var inspectionDelegate: InspectionDelegate?
         public private(set) var loggerDelegate: LoggerDelegate?
         public private(set) var presentationDelegate: PresentationDelegate?
         public private(set) var reportDelegate: ReportDelegate?
+        public private(set) var sourceLanguageCode = "en"
+        public private(set) var targetLanguageCode = Locale.systemLanguageCode
         public private(set) var translationDelegate: TranslationDelegate?
-
-        // Translation Configurations
         public private(set) var translationHUDConfig: HUDConfig = .init(
             appearsAfter: .seconds(2),
             isModal: true
@@ -55,6 +46,8 @@ public extension AlertKit {
             .seconds(10),
             returnsInputsOnFailure: true
         )
+
+        fileprivate static let shared = Config()
 
         /* MARK: Init */
 

@@ -17,19 +17,19 @@ public extension AlertKit {
     final class TextInputAlert {
         // MARK: - Properties
 
-        public let attributes: TextFieldAttributes
-        public let cancelButtonStyle: ActionStyle
-        public let cancelButtonTitle: String
-        public let confirmButtonStyle: ActionStyle
-        public let confirmButtonTitle: String
-        public let message: String
-        public let title: String?
+        private let attributes: TextFieldAttributes
+        private let cancelButtonStyle: ActionStyle
+        private let cancelButtonTitle: String
+        private let confirmButtonStyle: ActionStyle
+        private let confirmButtonTitle: String
+        private let message: String
+        private let title: String?
 
         private var messageAttributes: AttributedStringConfig?
         private var textDidChangeObserver: NSObjectProtocol?
         private var titleAttributes: AttributedStringConfig?
-        private var _onTextFieldChange: (@MainActor (UITextField?) -> Void)?
         private var windowDidBecomeHiddenObserver: NSObjectProtocol?
+        private var _onTextFieldChange: (@MainActor (UITextField?) -> Void)?
 
         private weak var observedAlertControllerWindow: UIWindow?
         private weak var observedTextField: UITextField?
@@ -116,30 +116,17 @@ public extension AlertKit {
                 .title,
             ]
         ) async -> String? {
-            guard !keys.isEmpty else {
-                return await withCheckedContinuation { continuation in
-                    present { string in
-                        continuation.resume(returning: string)
+            await AlertKit.presentWithTranslation(
+                shouldTranslate: !keys.isEmpty,
+                presentDirectly: {
+                    await withCheckedContinuation { continuation in
+                        present { continuation.resume(returning: $0) }
                     }
-                }
-            }
-
-            let translateResult = await translate(keys)
-
-            switch translateResult {
-            case let .success(alert):
-                return await alert.present(translating: [])
-
-            case let .failure(error):
-                Config.shared.loggerDelegate?.log(
-                    error.localizedDescription,
-                    sender: self,
-                    fileName: #fileID,
-                    function: #function,
-                    line: #line
-                )
-                return await present(translating: [])
-            }
+                },
+                translate: { await translate(keys) },
+                presentTranslated: { await $0.present(translating: []) },
+                sender: self
+            )
         }
 
         private func present(completion: @escaping (String?) -> Void) {
@@ -174,23 +161,12 @@ public extension AlertKit {
                 alertController.preferredAction = confirmAction
             }
 
-            if let messageAttributes,
-               let message = alertController.message {
-                alertController.setValue(
-                    message.attributed(messageAttributes),
-                    forKey: Constants.uiAlertControllerAttributedMessageKeyName
-                )
-            }
+            alertController.applyAttributedStrings(
+                messageAttributes: messageAttributes,
+                titleAttributes: titleAttributes
+            )
 
-            if let titleAttributes,
-               let title = alertController.title {
-                alertController.setValue(
-                    title.attributed(titleAttributes),
-                    forKey: Constants.uiAlertControllerAttributedTitleKeyName
-                )
-            }
-
-            Config.shared.presentationDelegate?.present(alertController)
+            AlertKit.config.presentationDelegate?.present(alertController)
             guard let onTextFieldChange = _onTextFieldChange else { return }
 
             observedTextField = alertController.textFields?.first
@@ -208,8 +184,8 @@ public extension AlertKit {
                 guard let self,
                       let window = alertController?.view.window else { return }
 
-                self.observedAlertControllerWindow = window
-                self.windowDidBecomeHiddenObserver = NotificationCenter.default.addObserver(
+                observedAlertControllerWindow = window
+                windowDidBecomeHiddenObserver = NotificationCenter.default.addObserver(
                     forName: UIWindow.didBecomeHiddenNotification,
                     object: window,
                     queue: .main
@@ -224,32 +200,15 @@ public extension AlertKit {
         // MARK: - Translate
 
         private func translate(_ keys: [TranslationOptionKey]) async -> Result<TextInputAlert, Error> {
-            let translator = Config.shared.translationDelegate ?? TranslationService.shared
-
-            var uniqueKeys = [TranslationOptionKey]()
-            for key in keys where !uniqueKeys.contains(key) {
-                uniqueKeys.append(key)
-            }
-
+            let uniqueKeys = keys.unique
             guard !uniqueKeys.isEmpty else { return .success(self) }
 
-            let getTranslationsResult = await translator.getTranslations(
-                translationInputs(for: uniqueKeys),
-                languagePair: .init(
-                    from: Config.shared.sourceLanguageCode,
-                    to: Config.shared.targetLanguageCode
-                ),
-                hud: Config.shared.translationHUDConfig,
-                timeout: Config.shared.translationTimeoutConfig
+            let getTranslationsResult = await AlertKit.getTranslations(
+                for: translationInputs(for: uniqueKeys)
             )
 
             switch getTranslationsResult {
             case let .success(translations):
-                var translatedTitle: String?
-                if let title = title {
-                    translatedTitle = translations.firstOutput(matching: title)
-                }
-
                 var attributes = attributes
                 if let placeholderText = attributes.placeholderText {
                     attributes = attributes.replacingPlaceholderText(translations.firstOutput(matching: placeholderText))
@@ -260,7 +219,7 @@ public extension AlertKit {
                 }
 
                 let alert: AKTextInputAlert = .init(
-                    title: translatedTitle,
+                    title: title.map { translations.firstOutput(matching: $0) },
                     message: translations.firstOutput(matching: message),
                     attributes: attributes,
                     cancelButtonTitle: translations.firstOutput(matching: cancelButtonTitle),
@@ -284,7 +243,7 @@ public extension AlertKit {
                 return .success(alert)
 
             case let .failure(error):
-                return .failure(.translationFailed(error.localizedDescription))
+                return .failure(error)
             }
         }
 
@@ -317,12 +276,7 @@ public extension AlertKit {
                 }
             }
 
-            var uniqueInputs = [TranslationInput]()
-            for input in inputs where !uniqueInputs.contains(input) {
-                uniqueInputs.append(input)
-            }
-
-            return uniqueInputs.filter { $0.value != Constants.defaultActionTitle }
+            return inputs.nonDefaultUnique
         }
     }
 }

@@ -17,11 +17,11 @@ public extension AlertKit {
     final class ActionSheet {
         // MARK: - Properties
 
-        public let actions: [Action]
-        public let cancelButtonTitle: String
-        public let message: String?
-        public let sourceItem: SourceItem?
-        public let title: String?
+        private let actions: [Action]
+        private let cancelButtonTitle: String
+        private let message: String?
+        private let sourceItem: SourceItem?
+        private let title: String?
 
         private var messageAttributes: AttributedStringConfig?
         private var titleAttributes: AttributedStringConfig?
@@ -29,7 +29,7 @@ public extension AlertKit {
         // MARK: - Computed Properties
 
         private var sourceItemView: UIView? {
-            guard let inspectionDelegate = Config.shared.inspectionDelegate,
+            guard let inspectionDelegate = AlertKit.config.inspectionDelegate,
                   let sourceItem else { return nil }
 
             switch sourceItem {
@@ -96,28 +96,17 @@ public extension AlertKit {
                 .title,
             ]
         ) async {
-            guard !keys.isEmpty else {
-                return await withCheckedContinuation { continuation in
-                    present { continuation.resume() }
-                }
-            }
-
-            let translateResult = await translate(keys)
-
-            switch translateResult {
-            case let .success(alert):
-                return await alert.present(translating: [])
-
-            case let .failure(error):
-                Config.shared.loggerDelegate?.log(
-                    error.localizedDescription,
-                    sender: self,
-                    fileName: #fileID,
-                    function: #function,
-                    line: #line
-                )
-                return await present(translating: [])
-            }
+            await AlertKit.presentWithTranslation(
+                shouldTranslate: !keys.isEmpty,
+                presentDirectly: {
+                    await withCheckedContinuation { continuation in
+                        present { continuation.resume() }
+                    }
+                },
+                translate: { await translate(keys) },
+                presentTranslated: { await $0.present(translating: []) },
+                sender: self
+            )
         }
 
         private func present(completion: @escaping () -> Void) {
@@ -136,22 +125,10 @@ public extension AlertKit {
                 )
             }
 
-            for action in actions {
-                let alertAction = UIAlertAction(
-                    title: action.title.sanitized,
-                    style: action.style.uiAlertStyle
-                ) { _ in
-                    action.perform()
-                    completion()
-                }
-
-                alertAction.isEnabled = action.isEnabled
-                alertController.addAction(alertAction)
-
-                if action.style == .preferred || action.style == .destructivePreferred {
-                    alertController.preferredAction = alertAction
-                }
-            }
+            alertController.addActions(
+                actions,
+                completion: completion
+            )
 
             if !actions.contains(where: { $0.style == .cancel }) {
                 let cancelAction = UIAlertAction(
@@ -163,74 +140,29 @@ public extension AlertKit {
                 alertController.addAction(cancelAction)
             }
 
-            if let messageAttributes,
-               let message = alertController.message {
-                alertController.setValue(
-                    message.attributed(messageAttributes),
-                    forKey: Constants.uiAlertControllerAttributedMessageKeyName
-                )
-            }
-
-            if let titleAttributes,
-               let title = alertController.title {
-                alertController.setValue(
-                    title.attributed(titleAttributes),
-                    forKey: Constants.uiAlertControllerAttributedTitleKeyName
-                )
-            }
+            alertController.applyAttributedStrings(
+                messageAttributes: messageAttributes,
+                titleAttributes: titleAttributes
+            )
 
             alertController.popoverPresentationController?.sourceItem = sourceItemView
-            Config.shared.presentationDelegate?.present(alertController)
+            AlertKit.config.presentationDelegate?.present(alertController)
         }
 
         // MARK: - Translate
 
         private func translate(_ keys: [TranslationOptionKey]) async -> Result<ActionSheet, Error> {
-            let translator = Config.shared.translationDelegate ?? TranslationService.shared
-
-            var uniqueKeys = [TranslationOptionKey]()
-            for key in keys where !uniqueKeys.contains(key) {
-                uniqueKeys.append(key)
-            }
-
+            let uniqueKeys = keys.unique
             guard !uniqueKeys.isEmpty else { return .success(self) }
 
-            let getTranslationsResult = await translator.getTranslations(
-                translationInputs(for: uniqueKeys),
-                languagePair: .init(
-                    from: Config.shared.sourceLanguageCode,
-                    to: Config.shared.targetLanguageCode
-                ),
-                hud: Config.shared.translationHUDConfig,
-                timeout: Config.shared.translationTimeoutConfig
-            )
+            let result = await AlertKit.getTranslations(for: translationInputs(for: uniqueKeys))
 
-            switch getTranslationsResult {
+            switch result {
             case let .success(translations):
-                var actions = [Action]()
-                for action in self.actions {
-                    actions.append(.init(
-                        translations.firstOutput(matching: action.title),
-                        isEnabled: action.isEnabled,
-                        style: action.style,
-                        effect: action.effect
-                    ))
-                }
-
-                var translatedMessage: String?
-                if let message = message {
-                    translatedMessage = translations.firstOutput(matching: message)
-                }
-
-                var translatedTitle: String?
-                if let title = title {
-                    translatedTitle = translations.firstOutput(matching: title)
-                }
-
                 let alert: AKActionSheet = .init(
-                    title: translatedTitle,
-                    message: translatedMessage,
-                    actions: actions,
+                    title: title.map { translations.firstOutput(matching: $0) },
+                    message: message.map { translations.firstOutput(matching: $0) },
+                    actions: actions.applying(translations),
                     cancelButtonTitle: translations.firstOutput(matching: cancelButtonTitle),
                     sourceItem: sourceItem
                 )
@@ -246,7 +178,7 @@ public extension AlertKit {
                 return .success(alert)
 
             case let .failure(error):
-                return .failure(.translationFailed(error.localizedDescription))
+                return .failure(error)
             }
         }
 
@@ -258,11 +190,17 @@ public extension AlertKit {
                 switch key {
                 case let .actions(actions):
                     guard !actions.isEmpty else {
-                        inputs.append(contentsOf: self.actions.map { .init($0.title) })
+                        inputs.append(
+                            contentsOf: self.actions.map { .init($0.title) }
+                        )
                         continue
                     }
 
-                    inputs.append(contentsOf: self.actions.filter { actions.contains($0) }.map { .init($0.title) })
+                    inputs.append(
+                        contentsOf: self.actions.filter {
+                            actions.contains($0)
+                        }.map { .init($0.title) }
+                    )
 
                 case .cancelButtonTitle:
                     inputs.append(.init(cancelButtonTitle))
@@ -277,12 +215,7 @@ public extension AlertKit {
                 }
             }
 
-            var uniqueInputs = [TranslationInput]()
-            for input in inputs where !uniqueInputs.contains(input) {
-                uniqueInputs.append(input)
-            }
-
-            return uniqueInputs.filter { $0.value != Constants.defaultActionTitle }
+            return inputs.nonDefaultUnique
         }
     }
 }

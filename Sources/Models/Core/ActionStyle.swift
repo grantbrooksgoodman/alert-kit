@@ -21,18 +21,18 @@ public extension AlertKit {
 
         // MARK: - Properties
 
-        public var uiAlertStyle: UIAlertAction.Style {
+        var uiAlertStyle: UIAlertAction.Style {
             switch self {
             case .cancel:
-                return .cancel
+                .cancel
 
             case .default,
                  .preferred:
-                return .default
+                .default
 
             case .destructive,
                  .destructivePreferred:
-                return .destructive
+                .destructive
             }
         }
     }

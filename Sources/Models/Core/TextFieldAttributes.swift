@@ -10,18 +10,18 @@ import Foundation
 import UIKit
 
 public extension AlertKit {
-    struct TextFieldAttributes: Equatable {
+    struct TextFieldAttributes: Hashable {
         // MARK: - Properties
 
-        public let capitalizationType: UITextAutocapitalizationType
-        public let clearButtonMode: UITextField.ViewMode
-        public let correctionType: UITextAutocorrectionType
-        public let isSecureTextEntry: Bool
-        public let keyboardAppearance: UIKeyboardAppearance
-        public let keyboardType: UIKeyboardType
-        public let placeholderText: String?
-        public let sampleText: String?
-        public let textAlignment: NSTextAlignment
+        let capitalizationType: UITextAutocapitalizationType
+        let clearButtonMode: UITextField.ViewMode
+        let correctionType: UITextAutocorrectionType
+        let isSecureTextEntry: Bool
+        let keyboardAppearance: UIKeyboardAppearance
+        let keyboardType: UIKeyboardType
+        let placeholderText: String?
+        let sampleText: String?
+        let textAlignment: NSTextAlignment
 
         // MARK: - Init
 

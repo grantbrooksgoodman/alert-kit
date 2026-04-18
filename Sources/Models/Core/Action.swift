@@ -9,13 +9,13 @@
 import Foundation
 
 public extension AlertKit {
-    struct Action: Equatable, Sendable {
+    struct Action: Hashable, Sendable {
         // MARK: - Properties
 
-        public let effect: @Sendable () -> Void
-        public let isEnabled: Bool
-        public let style: ActionStyle
-        public let title: String
+        let effect: @Sendable () -> Void
+        let isEnabled: Bool
+        let style: ActionStyle
+        let title: String
 
         private let id = UUID()
 
@@ -53,6 +53,15 @@ public extension AlertKit {
                   sameTitle else { return false }
 
             return true
+        }
+
+        // MARK: - Hashable Conformance
+
+        public func hash(into hasher: inout Hasher) {
+            hasher.combine(id)
+            hasher.combine(isEnabled)
+            hasher.combine(style)
+            hasher.combine(title)
         }
     }
 }
