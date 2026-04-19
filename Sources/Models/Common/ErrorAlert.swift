@@ -13,16 +13,48 @@ import UIKit
 import Translator
 
 public extension AlertKit {
+    /// An alert that presents an error to the user.
+    ///
+    /// Use `ErrorAlert` to display an error that conforms to the
+    /// ``Errorable`` protocol. Create an error alert and present it:
+    ///
+    /// ```swift
+    /// let alert = AKErrorAlert(error)
+    /// await alert.present()
+    /// ```
+    ///
+    /// When the error's ``Errorable/isReportable`` property is `true`
+    /// and the logger delegate does not report errors automatically, the
+    /// alert includes a "Send Error Report" button that files a report
+    /// through the configured ``ReportDelegate``. Otherwise, the alert
+    /// displays the error description as the title with the error
+    /// identifier in the message body.
+    ///
+    /// By default, ``present(translating:)`` translates the error
+    /// description and button titles into the configured target language.
+    /// Pass an empty array to skip translation.
+    @MainActor
     final class ErrorAlert {
         // MARK: - Properties
 
-        public let dismissButtonTitle: String
-        public let sendErrorReportButtonTitle: String
+        private let dismissButtonTitle: String
+        private let sendErrorReportButtonTitle: String
 
+        /// The error that this alert presents.
         public private(set) var error: any Errorable
 
         // MARK: - Init
 
+        /// Creates an error alert for the specified error.
+        ///
+        /// - Parameters:
+        ///   - error: The error to present. The error's description is
+        ///     displayed as the alert's message.
+        ///   - dismissButtonTitle: The title of the dismiss button. The
+        ///     default is "Dismiss".
+        ///   - sendErrorReportButtonTitle: The title of the button that
+        ///     files an error report. The default is
+        ///     "Send Error Report".
         public init(
             _ error: any Errorable,
             dismissButtonTitle: String = Constants.defaultDismissButtonTitle,
@@ -35,19 +67,36 @@ public extension AlertKit {
 
         // MARK: - Enable/Disable Actions
 
-        @MainActor
+        /// Disables the action at the specified index in any currently
+        /// presented alert controller.
+        ///
+        /// - Parameter index: The zero-based index of the action to
+        ///   disable.
         public func disableAction(at index: Int) {
             Alert.disableAction(at: index)
         }
 
-        @MainActor
+        /// Enables the action at the specified index in any currently
+        /// presented alert controller.
+        ///
+        /// - Parameter index: The zero-based index of the action to
+        ///   enable.
         public func enableAction(at index: Int) {
             Alert.enableAction(at: index)
         }
 
         // MARK: - Present
 
-        @MainActor
+        /// Presents the error alert and suspends until the user
+        /// dismisses it.
+        ///
+        /// This method translates the alert's content before presentation
+        /// according to the specified keys. Each key identifies a part of
+        /// the alert to translate. To skip translation, pass an empty
+        /// array.
+        ///
+        /// - Parameter keys: The parts of the alert to translate. The
+        ///   default includes all translatable content.
         public func present(
             translating keys: [TranslationOptionKey] = [
                 .dismissButtonTitle,
@@ -55,31 +104,24 @@ public extension AlertKit {
                 .sendErrorReportButtonTitle,
             ]
         ) async {
-            guard !keys.isEmpty else {
-                return await withCheckedContinuation { continuation in
-                    present { continuation.resume() }
-                }
-            }
+            await AlertKit.presentWithTranslation(
+                shouldTranslate: !keys.isEmpty,
+                presentDirectly: {
+                    await withCheckedContinuation { continuation in
+                        let continuation = ContinuationGuard(
+                            continuation,
+                            fallbackValue: ()
+                        )
 
-            let translateResult = await translate(keys)
-
-            switch translateResult {
-            case let .success(alert):
-                return await alert.present(translating: [])
-
-            case let .failure(error):
-                Config.shared.loggerDelegate?.log(
-                    error.localizedDescription,
-                    sender: self,
-                    fileName: #fileID,
-                    function: #function,
-                    line: #line
-                )
-                return await present(translating: [])
-            }
+                        present { continuation.resume(returning: ()) }
+                    }
+                },
+                translate: { await translate(keys) },
+                presentTranslated: { await $0.present(translating: []) },
+                sender: self
+            )
         }
 
-        @MainActor
         private func present(completion: @escaping () -> Void) {
             let alertController = UIAlertController(
                 title: nil,
@@ -88,12 +130,12 @@ public extension AlertKit {
             )
 
             if error.isReportable,
-               Config.shared.loggerDelegate?.reportsErrorsAutomatically == false {
+               AlertKit.config.loggerDelegate?.reportsErrorsAutomatically == false {
                 let reportAction = UIAlertAction(
                     title: sendErrorReportButtonTitle.sanitized,
                     style: .default
                 ) { _ in
-                    Config.shared.reportDelegate?.fileReport(self.error)
+                    AlertKit.config.reportDelegate?.fileReport(self.error)
                     completion()
                 }
 
@@ -112,29 +154,17 @@ public extension AlertKit {
             }
             alertController.addAction(dismissAction)
 
-            Config.shared.presentationDelegate?.present(alertController)
+            AlertKit.config.presentationDelegate?.present(alertController)
         }
 
         // MARK: - Translate
 
         private func translate(_ keys: [TranslationOptionKey]) async -> Result<ErrorAlert, Error> {
-            let translator = Config.shared.translationDelegate ?? TranslationService.shared
-
-            var uniqueKeys = [TranslationOptionKey]()
-            for key in keys where !uniqueKeys.contains(key) {
-                uniqueKeys.append(key)
-            }
-
+            let uniqueKeys = keys.unique
             guard !uniqueKeys.isEmpty else { return .success(self) }
 
-            let getTranslationsResult = await translator.getTranslations(
-                translationInputs(for: uniqueKeys),
-                languagePair: .init(
-                    from: Config.shared.sourceLanguageCode,
-                    to: Config.shared.targetLanguageCode
-                ),
-                hud: Config.shared.translationHUDConfig,
-                timeout: Config.shared.translationTimeoutConfig
+            let getTranslationsResult = await AlertKit.getTranslations(
+                for: translationInputs(for: uniqueKeys)
             )
 
             switch getTranslationsResult {
@@ -147,7 +177,7 @@ public extension AlertKit {
                 ))
 
             case let .failure(error):
-                return .failure(.translationFailed(error.localizedDescription))
+                return .failure(error)
             }
         }
 
@@ -168,12 +198,7 @@ public extension AlertKit {
                 }
             }
 
-            var uniqueInputs = [TranslationInput]()
-            for input in inputs where !uniqueInputs.contains(input) {
-                uniqueInputs.append(input)
-            }
-
-            return uniqueInputs.filter { $0.value != Constants.defaultActionTitle }
+            return inputs.nonDefaultUnique
         }
     }
 }

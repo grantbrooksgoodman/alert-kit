@@ -8,6 +8,7 @@
 /* Native */
 import Foundation
 
+@MainActor
 extension Locale {
     static var systemLanguageCode: String {
         let bundleLanguage = Bundle.main.preferredLocalizations.first
@@ -16,7 +17,7 @@ extension Locale {
 
         let languageCode = bundleLanguage ?? localeLanguage ?? currentLocaleLanguage
         guard let languageCode,
-              languageCode.count >= 2 else { return Config.shared.sourceLanguageCode }
+              languageCode.count >= 2 else { return AlertKit.config.sourceLanguageCode }
         return languageCode.map { String($0) }[0 ... 1].joined()
     }
 }

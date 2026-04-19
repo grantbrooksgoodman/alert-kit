@@ -13,18 +13,72 @@ import UIKit
 import Translator
 
 public extension AlertKit {
+    /// An alert that displays a title, message, and a set of actions.
+    ///
+    /// Use `Alert` to present a standard alert dialog to the user using
+    /// your app. Create an alert with a title, an optional message, and
+    /// one or more actions, then call ``present(translating:)`` to display
+    /// it:
+    ///
+    /// ```swift
+    /// let alert = AKAlert(
+    ///     title: "Remove Item",
+    ///     message: "This action cannot be undone.",
+    ///     actions: [
+    ///         .init("Remove", style: .destructive) {
+    ///             removeItem()
+    ///         },
+    ///         .init("Cancel", style: .cancel) {},
+    ///     ]
+    /// )
+    ///
+    /// await alert.present()
+    /// ```
+    ///
+    /// When you omit the `actions` parameter, the alert displays a single
+    /// "OK" button with the ``ActionStyle/cancel`` style.
+    ///
+    /// ## Translation
+    ///
+    /// By default, ``present(translating:)`` translates the alert's title,
+    /// message, and action titles into the configured target language
+    /// before presentation. To present without translation, pass an empty
+    /// array:
+    ///
+    /// ```swift
+    /// await alert.present(translating: [])
+    /// ```
+    ///
+    /// To translate only specific parts of the alert, provide the
+    /// corresponding ``TranslationOptionKey`` values:
+    ///
+    /// ```swift
+    /// await alert.present(translating: [.title, .message])
+    /// ```
+    ///
+    /// - Important: The `actions` array must contain at least one action.
+    ///   Passing an empty array triggers a runtime assertion failure.
+    @MainActor
     final class Alert {
         // MARK: - Properties
 
-        public let actions: [Action]
-        public let message: String?
-        public let title: String?
+        private let actions: [Action]
+        private let message: String?
+        private let title: String?
 
         private var messageAttributes: AttributedStringConfig?
         private var titleAttributes: AttributedStringConfig?
 
         // MARK: - Init
 
+        /// Creates an alert with the specified title, message, and actions.
+        ///
+        /// - Parameters:
+        ///   - title: The title of the alert. The default is `nil`.
+        ///   - message: The descriptive message of the alert.
+        ///   - actions: The actions to display as buttons in the alert.
+        ///     The default is a single "OK" button with the
+        ///     ``ActionStyle/cancel`` style.
         public init(
             title: String? = nil,
             message: String?,
@@ -38,29 +92,62 @@ public extension AlertKit {
 
         // MARK: - Enable/Disable Actions
 
-        @MainActor
+        /// Disables the action at the specified index in any currently
+        /// presented alert controller.
+        ///
+        /// - Parameter index: The zero-based index of the action to
+        ///   disable.
         public func disableAction(at index: Int) {
             Alert.disableAction(at: index)
         }
 
-        @MainActor
+        /// Enables the action at the specified index in any currently
+        /// presented alert controller.
+        ///
+        /// - Parameter index: The zero-based index of the action to
+        ///   enable.
         public func enableAction(at index: Int) {
             Alert.enableAction(at: index)
         }
 
         // MARK: - Set Attributed Strings
 
+        /// Sets the attributed string configuration for the alert's
+        /// message.
+        ///
+        /// Call this method before ``present(translating:)`` to customize
+        /// the appearance of the message text.
+        ///
+        /// - Parameter messageAttributes: The attributed string
+        ///   configuration to apply to the message.
         public func setMessageAttributes(_ messageAttributes: AttributedStringConfig) {
             self.messageAttributes = messageAttributes
         }
 
+        /// Sets the attributed string configuration for the alert's
+        /// title.
+        ///
+        /// Call this method before ``present(translating:)`` to customize
+        /// the appearance of the title text.
+        ///
+        /// - Parameter titleAttributes: The attributed string
+        ///   configuration to apply to the title.
         public func setTitleAttributes(_ titleAttributes: AttributedStringConfig) {
             self.titleAttributes = titleAttributes
         }
 
         // MARK: - Present
 
-        @MainActor
+        /// Presents the alert and suspends until the user selects an
+        /// action.
+        ///
+        /// This method translates the alert's content before presentation
+        /// according to the specified keys. Each key identifies a part of
+        /// the alert to translate. To skip translation, pass an empty
+        /// array.
+        ///
+        /// - Parameter keys: The parts of the alert to translate. The
+        ///   default includes all translatable content.
         public func present(
             translating keys: [TranslationOptionKey] = [
                 .actions(),
@@ -68,31 +155,24 @@ public extension AlertKit {
                 .title,
             ]
         ) async {
-            guard !keys.isEmpty else {
-                return await withCheckedContinuation { continuation in
-                    present { continuation.resume() }
-                }
-            }
+            await AlertKit.presentWithTranslation(
+                shouldTranslate: !keys.isEmpty,
+                presentDirectly: {
+                    await withCheckedContinuation { continuation in
+                        let continuation = ContinuationGuard(
+                            continuation,
+                            fallbackValue: ()
+                        )
 
-            let translateResult = await translate(keys)
-
-            switch translateResult {
-            case let .success(alert):
-                return await alert.present(translating: [])
-
-            case let .failure(error):
-                Config.shared.loggerDelegate?.log(
-                    error.localizedDescription,
-                    sender: self,
-                    fileName: #fileID,
-                    function: #function,
-                    line: #line
-                )
-                return await present(translating: [])
-            }
+                        present { continuation.resume(returning: ()) }
+                    }
+                },
+                translate: { await translate(keys) },
+                presentTranslated: { await $0.present(translating: []) },
+                sender: self
+            )
         }
 
-        @MainActor
         private func present(completion: @escaping () -> Void) {
             let alertController = UIAlertController(
                 title: title?.sanitized,
@@ -100,91 +180,35 @@ public extension AlertKit {
                 preferredStyle: .alert
             )
 
-            for action in actions {
-                let alertAction = UIAlertAction(
-                    title: action.title.sanitized,
-                    style: action.style.uiAlertStyle
-                ) { _ in
-                    action.perform()
-                    completion()
-                }
+            alertController.addActions(
+                actions,
+                completion: completion
+            )
 
-                alertAction.isEnabled = action.isEnabled
-                alertController.addAction(alertAction)
+            alertController.applyAttributedStrings(
+                messageAttributes: messageAttributes,
+                titleAttributes: titleAttributes
+            )
 
-                if action.style == .preferred || action.style == .destructivePreferred {
-                    alertController.preferredAction = alertAction
-                }
-            }
-
-            if let messageAttributes,
-               let message = alertController.message {
-                alertController.setValue(
-                    message.attributed(messageAttributes),
-                    forKey: Constants.uiAlertControllerAttributedMessageKeyName
-                )
-            }
-
-            if let titleAttributes,
-               let title = alertController.title {
-                alertController.setValue(
-                    title.attributed(titleAttributes),
-                    forKey: Constants.uiAlertControllerAttributedTitleKeyName
-                )
-            }
-
-            Config.shared.presentationDelegate?.present(alertController)
+            AlertKit.config.presentationDelegate?.present(alertController)
         }
 
         // MARK: - Translate
 
         private func translate(_ keys: [TranslationOptionKey]) async -> Result<Alert, Error> {
-            let translator = Config.shared.translationDelegate ?? TranslationService.shared
-
-            var uniqueKeys = [TranslationOptionKey]()
-            for key in keys where !uniqueKeys.contains(key) {
-                uniqueKeys.append(key)
-            }
-
+            let uniqueKeys = keys.unique
             guard !uniqueKeys.isEmpty else { return .success(self) }
 
-            let getTranslationsResult = await translator.getTranslations(
-                translationInputs(for: uniqueKeys),
-                languagePair: .init(
-                    from: Config.shared.sourceLanguageCode,
-                    to: Config.shared.targetLanguageCode
-                ),
-                hud: Config.shared.translationHUDConfig,
-                timeout: Config.shared.translationTimeoutConfig
+            let getTranslationsResult = await AlertKit.getTranslations(
+                for: translationInputs(for: uniqueKeys)
             )
 
             switch getTranslationsResult {
             case let .success(translations):
-                var actions = [Action]()
-                for action in self.actions {
-                    actions.append(.init(
-                        translations.firstOutput(matching: action.title),
-                        isEnabled: action.isEnabled,
-                        style: action.style,
-                        effect: action.effect
-                    ))
-                }
-
-                var translatedMessage: String?
-                var translatedTitle: String?
-
-                if let message {
-                    translatedMessage = translations.firstOutput(matching: message)
-                }
-
-                if let title {
-                    translatedTitle = translations.firstOutput(matching: title)
-                }
-
                 let alert: AKAlert = .init(
-                    title: translatedTitle,
-                    message: translatedMessage,
-                    actions: actions
+                    title: title.map { translations.firstOutput(matching: $0) },
+                    message: message.map { translations.firstOutput(matching: $0) },
+                    actions: actions.applying(translations)
                 )
 
                 if let messageAttributes {
@@ -198,7 +222,7 @@ public extension AlertKit {
                 return .success(alert)
 
             case let .failure(error):
-                return .failure(.translationFailed(error.localizedDescription))
+                return .failure(error)
             }
         }
 
@@ -210,11 +234,17 @@ public extension AlertKit {
                 switch key {
                 case let .actions(actions):
                     guard !actions.isEmpty else {
-                        inputs.append(contentsOf: self.actions.map { .init($0.title) })
+                        inputs.append(
+                            contentsOf: self.actions.map { .init($0.title) }
+                        )
                         continue
                     }
 
-                    inputs.append(contentsOf: self.actions.filter { actions.contains($0) }.map { .init($0.title) })
+                    inputs.append(
+                        contentsOf: self.actions.filter {
+                            actions.contains($0)
+                        }.map { .init($0.title) }
+                    )
 
                 case .message:
                     guard let message else { continue }
@@ -226,12 +256,7 @@ public extension AlertKit {
                 }
             }
 
-            var uniqueInputs = [TranslationInput]()
-            for input in inputs where !uniqueInputs.contains(input) {
-                uniqueInputs.append(input)
-            }
-
-            return uniqueInputs.filter { $0.value != Constants.defaultActionTitle }
+            return inputs.nonDefaultUnique
         }
     }
 }

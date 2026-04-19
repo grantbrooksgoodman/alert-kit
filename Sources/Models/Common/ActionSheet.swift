@@ -13,14 +13,53 @@ import UIKit
 import Translator
 
 public extension AlertKit {
+    /// An action sheet that displays a title, message, and a scrollable
+    /// list of actions.
+    ///
+    /// Use `ActionSheet` to present a set of choices related to an action
+    /// the user initiates. Create an action sheet with the actions you
+    /// want to offer, then call ``present(translating:)`` to display it:
+    ///
+    /// ```swift
+    /// let actionSheet = AKActionSheet(
+    ///     title: "Share Photo",
+    ///     actions: [
+    ///         .init("Save to Camera Roll") {
+    ///             savePhoto()
+    ///         },
+    ///         .init("Copy Link") {
+    ///             copyLink()
+    ///         },
+    ///     ]
+    /// )
+    ///
+    /// await actionSheet.present()
+    /// ```
+    ///
+    /// A cancel button is added automatically unless one of the provided
+    /// actions uses the ``ActionStyle/cancel`` style. You can customize
+    /// the cancel button's title through the `cancelButtonTitle`
+    /// parameter.
+    ///
+    /// On iOS 26 and later, the action sheet may be presented as a
+    /// popover. Provide a ``SourceItem`` to specify the view that the
+    /// popover anchors to.
+    ///
+    /// By default, ``present(translating:)`` translates all content into
+    /// the configured target language. Pass an empty array to skip
+    /// translation.
+    ///
+    /// - Important: The `actions` array must contain at least one action.
+    ///   Passing an empty array triggers a runtime assertion failure.
+    @MainActor
     final class ActionSheet {
         // MARK: - Properties
 
-        public let actions: [Action]
-        public let cancelButtonTitle: String
-        public let message: String?
-        public let sourceItem: SourceItem?
-        public let title: String?
+        private let actions: [Action]
+        private let cancelButtonTitle: String
+        private let message: String?
+        private let sourceItem: SourceItem?
+        private let title: String?
 
         private var messageAttributes: AttributedStringConfig?
         private var titleAttributes: AttributedStringConfig?
@@ -28,7 +67,7 @@ public extension AlertKit {
         // MARK: - Computed Properties
 
         private var sourceItemView: UIView? {
-            guard let inspectionDelegate = Config.shared.inspectionDelegate,
+            guard let inspectionDelegate = AlertKit.config.inspectionDelegate,
                   let sourceItem else { return nil }
 
             switch sourceItem {
@@ -50,6 +89,20 @@ public extension AlertKit {
 
         // MARK: - Init
 
+        /// Creates an action sheet with the specified title, message,
+        /// actions, cancel button title, and source item.
+        ///
+        /// - Parameters:
+        ///   - title: The title of the action sheet. The default is `nil`.
+        ///   - message: The descriptive message of the action sheet. The
+        ///     default is `nil`.
+        ///   - actions: The actions to display in the action sheet.
+        ///   - cancelButtonTitle: The title of the cancel button. The
+        ///     default is "Cancel". This button is added automatically
+        ///     unless one of the provided actions uses the
+        ///     ``ActionStyle/cancel`` style.
+        ///   - sourceItem: The element that the action sheet's popover
+        ///     anchors to on iOS 26 and later. The default is `nil`.
         public init(
             title: String? = nil,
             message: String? = nil,
@@ -67,29 +120,62 @@ public extension AlertKit {
 
         // MARK: - Enable/Disable Actions
 
-        @MainActor
+        /// Disables the action at the specified index in any currently
+        /// presented alert controller.
+        ///
+        /// - Parameter index: The zero-based index of the action to
+        ///   disable.
         public func disableAction(at index: Int) {
             Alert.disableAction(at: index)
         }
 
-        @MainActor
+        /// Enables the action at the specified index in any currently
+        /// presented alert controller.
+        ///
+        /// - Parameter index: The zero-based index of the action to
+        ///   enable.
         public func enableAction(at index: Int) {
             Alert.enableAction(at: index)
         }
 
         // MARK: - Set Attributed Strings
 
+        /// Sets the attributed string configuration for the action
+        /// sheet's message.
+        ///
+        /// Call this method before ``present(translating:)`` to customize
+        /// the appearance of the message text.
+        ///
+        /// - Parameter messageAttributes: The attributed string
+        ///   configuration to apply to the message.
         public func setMessageAttributes(_ messageAttributes: AttributedStringConfig) {
             self.messageAttributes = messageAttributes
         }
 
+        /// Sets the attributed string configuration for the action
+        /// sheet's title.
+        ///
+        /// Call this method before ``present(translating:)`` to customize
+        /// the appearance of the title text.
+        ///
+        /// - Parameter titleAttributes: The attributed string
+        ///   configuration to apply to the title.
         public func setTitleAttributes(_ titleAttributes: AttributedStringConfig) {
             self.titleAttributes = titleAttributes
         }
 
         // MARK: - Present
 
-        @MainActor
+        /// Presents the action sheet and suspends until the user
+        /// selects an action or cancels.
+        ///
+        /// This method translates the action sheet's content before
+        /// presentation according to the specified keys. Each key
+        /// identifies a part of the action sheet to translate. To skip
+        /// translation, pass an empty array.
+        ///
+        /// - Parameter keys: The parts of the action sheet to translate.
+        ///   The default includes all translatable content.
         public func present(
             translating keys: [TranslationOptionKey] = [
                 .actions(),
@@ -98,31 +184,24 @@ public extension AlertKit {
                 .title,
             ]
         ) async {
-            guard !keys.isEmpty else {
-                return await withCheckedContinuation { continuation in
-                    present { continuation.resume() }
-                }
-            }
+            await AlertKit.presentWithTranslation(
+                shouldTranslate: !keys.isEmpty,
+                presentDirectly: {
+                    await withCheckedContinuation { continuation in
+                        let continuation = ContinuationGuard(
+                            continuation,
+                            fallbackValue: ()
+                        )
 
-            let translateResult = await translate(keys)
-
-            switch translateResult {
-            case let .success(alert):
-                return await alert.present(translating: [])
-
-            case let .failure(error):
-                Config.shared.loggerDelegate?.log(
-                    error.localizedDescription,
-                    sender: self,
-                    fileName: #fileID,
-                    function: #function,
-                    line: #line
-                )
-                return await present(translating: [])
-            }
+                        present { continuation.resume(returning: ()) }
+                    }
+                },
+                translate: { await translate(keys) },
+                presentTranslated: { await $0.present(translating: []) },
+                sender: self
+            )
         }
 
-        @MainActor
         private func present(completion: @escaping () -> Void) {
             var alertController = UIAlertController(
                 title: title?.sanitized,
@@ -130,6 +209,10 @@ public extension AlertKit {
                 preferredStyle: .actionSheet
             )
 
+            // When the action sheet has a title but no message, promote
+            // the title into the message position. UIAlertController
+            // renders messages with a smaller, lighter font that
+            // produces a more natural layout for title-only action sheets.
             if message == nil,
                let title {
                 alertController = .init(
@@ -139,22 +222,10 @@ public extension AlertKit {
                 )
             }
 
-            for action in actions {
-                let alertAction = UIAlertAction(
-                    title: action.title.sanitized,
-                    style: action.style.uiAlertStyle
-                ) { _ in
-                    action.perform()
-                    completion()
-                }
-
-                alertAction.isEnabled = action.isEnabled
-                alertController.addAction(alertAction)
-
-                if action.style == .preferred || action.style == .destructivePreferred {
-                    alertController.preferredAction = alertAction
-                }
-            }
+            alertController.addActions(
+                actions,
+                completion: completion
+            )
 
             if !actions.contains(where: { $0.style == .cancel }) {
                 let cancelAction = UIAlertAction(
@@ -166,74 +237,29 @@ public extension AlertKit {
                 alertController.addAction(cancelAction)
             }
 
-            if let messageAttributes,
-               let message = alertController.message {
-                alertController.setValue(
-                    message.attributed(messageAttributes),
-                    forKey: Constants.uiAlertControllerAttributedMessageKeyName
-                )
-            }
-
-            if let titleAttributes,
-               let title = alertController.title {
-                alertController.setValue(
-                    title.attributed(titleAttributes),
-                    forKey: Constants.uiAlertControllerAttributedTitleKeyName
-                )
-            }
+            alertController.applyAttributedStrings(
+                messageAttributes: messageAttributes,
+                titleAttributes: titleAttributes
+            )
 
             alertController.popoverPresentationController?.sourceItem = sourceItemView
-            Config.shared.presentationDelegate?.present(alertController)
+            AlertKit.config.presentationDelegate?.present(alertController)
         }
 
         // MARK: - Translate
 
         private func translate(_ keys: [TranslationOptionKey]) async -> Result<ActionSheet, Error> {
-            let translator = Config.shared.translationDelegate ?? TranslationService.shared
-
-            var uniqueKeys = [TranslationOptionKey]()
-            for key in keys where !uniqueKeys.contains(key) {
-                uniqueKeys.append(key)
-            }
-
+            let uniqueKeys = keys.unique
             guard !uniqueKeys.isEmpty else { return .success(self) }
 
-            let getTranslationsResult = await translator.getTranslations(
-                translationInputs(for: uniqueKeys),
-                languagePair: .init(
-                    from: Config.shared.sourceLanguageCode,
-                    to: Config.shared.targetLanguageCode
-                ),
-                hud: Config.shared.translationHUDConfig,
-                timeout: Config.shared.translationTimeoutConfig
-            )
+            let result = await AlertKit.getTranslations(for: translationInputs(for: uniqueKeys))
 
-            switch getTranslationsResult {
+            switch result {
             case let .success(translations):
-                var actions = [Action]()
-                for action in self.actions {
-                    actions.append(.init(
-                        translations.firstOutput(matching: action.title),
-                        isEnabled: action.isEnabled,
-                        style: action.style,
-                        effect: action.effect
-                    ))
-                }
-
-                var translatedMessage: String?
-                if let message = message {
-                    translatedMessage = translations.firstOutput(matching: message)
-                }
-
-                var translatedTitle: String?
-                if let title = title {
-                    translatedTitle = translations.firstOutput(matching: title)
-                }
-
                 let alert: AKActionSheet = .init(
-                    title: translatedTitle,
-                    message: translatedMessage,
-                    actions: actions,
+                    title: title.map { translations.firstOutput(matching: $0) },
+                    message: message.map { translations.firstOutput(matching: $0) },
+                    actions: actions.applying(translations),
                     cancelButtonTitle: translations.firstOutput(matching: cancelButtonTitle),
                     sourceItem: sourceItem
                 )
@@ -249,7 +275,7 @@ public extension AlertKit {
                 return .success(alert)
 
             case let .failure(error):
-                return .failure(.translationFailed(error.localizedDescription))
+                return .failure(error)
             }
         }
 
@@ -261,11 +287,17 @@ public extension AlertKit {
                 switch key {
                 case let .actions(actions):
                     guard !actions.isEmpty else {
-                        inputs.append(contentsOf: self.actions.map { .init($0.title) })
+                        inputs.append(
+                            contentsOf: self.actions.map { .init($0.title) }
+                        )
                         continue
                     }
 
-                    inputs.append(contentsOf: self.actions.filter { actions.contains($0) }.map { .init($0.title) })
+                    inputs.append(
+                        contentsOf: self.actions.filter {
+                            actions.contains($0)
+                        }.map { .init($0.title) }
+                    )
 
                 case .cancelButtonTitle:
                     inputs.append(.init(cancelButtonTitle))
@@ -280,12 +312,7 @@ public extension AlertKit {
                 }
             }
 
-            var uniqueInputs = [TranslationInput]()
-            for input in inputs where !uniqueInputs.contains(input) {
-                uniqueInputs.append(input)
-            }
-
-            return uniqueInputs.filter { $0.value != Constants.defaultActionTitle }
+            return inputs.nonDefaultUnique
         }
     }
 }

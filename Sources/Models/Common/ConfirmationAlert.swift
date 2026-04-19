@@ -13,21 +13,72 @@ import UIKit
 import Translator
 
 public extension AlertKit {
+    /// An alert that asks the user to confirm or cancel an action.
+    ///
+    /// Use `ConfirmationAlert` to present a simple two-button dialog that
+    /// resolves to a Boolean result. The confirm button indicates the
+    /// affirmative choice, and the cancel button dismisses the alert
+    /// without action:
+    ///
+    /// ```swift
+    /// let confirmed = await AKConfirmationAlert(
+    ///     title: "Remove Item",
+    ///     message: "This action cannot be undone."
+    /// ).present()
+    ///
+    /// if confirmed {
+    ///     removeItem()
+    /// }
+    /// ```
+    ///
+    /// You can customize the button titles and styles:
+    ///
+    /// ```swift
+    /// let alert = AKConfirmationAlert(
+    ///     message: "Discard your changes?",
+    ///     cancelButtonTitle: "Keep Editing",
+    ///     confirmButtonTitle: "Discard",
+    ///     confirmButtonStyle: .destructive
+    /// )
+    ///
+    /// if await alert.present() {
+    ///     discardChanges()
+    /// }
+    /// ```
+    ///
+    /// By default, ``present(translating:)`` translates all content into
+    /// the configured target language. Pass an empty array to skip
+    /// translation.
+    @MainActor
     final class ConfirmationAlert {
         // MARK: - Properties
 
-        public let cancelButtonStyle: ActionStyle
-        public let cancelButtonTitle: String
-        public let confirmButtonStyle: ActionStyle
-        public let confirmButtonTitle: String
-        public let message: String
-        public let title: String?
+        private let cancelButtonStyle: ActionStyle
+        private let cancelButtonTitle: String
+        private let confirmButtonStyle: ActionStyle
+        private let confirmButtonTitle: String
+        private let message: String
+        private let title: String?
 
         private var messageAttributes: AttributedStringConfig?
         private var titleAttributes: AttributedStringConfig?
 
         // MARK: - Init
 
+        /// Creates a confirmation alert with the specified title, message,
+        /// and button configuration.
+        ///
+        /// - Parameters:
+        ///   - title: The title of the alert. The default is `nil`.
+        ///   - message: The descriptive message of the alert.
+        ///   - cancelButtonTitle: The title of the cancel button. The
+        ///     default is "Cancel".
+        ///   - cancelButtonStyle: The style of the cancel button. The
+        ///     default is ``ActionStyle/cancel``.
+        ///   - confirmButtonTitle: The title of the confirm button. The
+        ///     default is "Confirm".
+        ///   - confirmButtonStyle: The style of the confirm button. The
+        ///     default is ``ActionStyle/preferred``.
         public init(
             title: String? = nil,
             message: String,
@@ -46,29 +97,65 @@ public extension AlertKit {
 
         // MARK: - Enable/Disable Actions
 
-        @MainActor
+        /// Disables the action at the specified index in any currently
+        /// presented alert controller.
+        ///
+        /// - Parameter index: The zero-based index of the action to
+        ///   disable.
         public func disableAction(at index: Int) {
             Alert.disableAction(at: index)
         }
 
-        @MainActor
+        /// Enables the action at the specified index in any currently
+        /// presented alert controller.
+        ///
+        /// - Parameter index: The zero-based index of the action to
+        ///   enable.
         public func enableAction(at index: Int) {
             Alert.enableAction(at: index)
         }
 
         // MARK: - Set Attributed Strings
 
+        /// Sets the attributed string configuration for the alert's
+        /// message.
+        ///
+        /// Call this method before ``present(translating:)`` to customize
+        /// the appearance of the message text.
+        ///
+        /// - Parameter messageAttributes: The attributed string
+        ///   configuration to apply to the message.
         public func setMessageAttributes(_ messageAttributes: AttributedStringConfig) {
             self.messageAttributes = messageAttributes
         }
 
+        /// Sets the attributed string configuration for the alert's
+        /// title.
+        ///
+        /// Call this method before ``present(translating:)`` to customize
+        /// the appearance of the title text.
+        ///
+        /// - Parameter titleAttributes: The attributed string
+        ///   configuration to apply to the title.
         public func setTitleAttributes(_ titleAttributes: AttributedStringConfig) {
             self.titleAttributes = titleAttributes
         }
 
         // MARK: - Present
 
-        @MainActor
+        /// Presents the alert and suspends until the user makes a
+        /// choice.
+        ///
+        /// This method translates the alert's content before presentation
+        /// according to the specified keys. Each key identifies a part of
+        /// the alert to translate. To skip translation, pass an empty
+        /// array.
+        ///
+        /// - Parameter keys: The parts of the alert to translate. The
+        ///   default includes all translatable content.
+        ///
+        /// - Returns: `true` if the user taps the confirm button;
+        ///   `false` if they tap the cancel button.
         public func present(
             translating keys: [TranslationOptionKey] = [
                 .cancelButtonTitle,
@@ -77,33 +164,24 @@ public extension AlertKit {
                 .title,
             ]
         ) async -> Bool {
-            guard !keys.isEmpty else {
-                return await withCheckedContinuation { continuation in
-                    present { confirmed in
-                        continuation.resume(returning: confirmed)
+            await AlertKit.presentWithTranslation(
+                shouldTranslate: !keys.isEmpty,
+                presentDirectly: {
+                    await withCheckedContinuation { continuation in
+                        let continuation = ContinuationGuard(
+                            continuation,
+                            fallbackValue: false
+                        )
+
+                        present { continuation.resume(returning: $0) }
                     }
-                }
-            }
-
-            let translateResult = await translate(keys)
-
-            switch translateResult {
-            case let .success(alert):
-                return await alert.present(translating: [])
-
-            case let .failure(error):
-                Config.shared.loggerDelegate?.log(
-                    error.localizedDescription,
-                    sender: self,
-                    fileName: #fileID,
-                    function: #function,
-                    line: #line
-                )
-                return await present(translating: [])
-            }
+                },
+                translate: { await translate(keys) },
+                presentTranslated: { await $0.present(translating: []) },
+                sender: self
+            )
         }
 
-        @MainActor
         private func present(completion: @escaping (Bool) -> Void) {
             let alertController = UIAlertController(
                 title: title?.sanitized,
@@ -134,56 +212,28 @@ public extension AlertKit {
                 alertController.preferredAction = confirmAction
             }
 
-            if let messageAttributes,
-               let message = alertController.message {
-                alertController.setValue(
-                    message.attributed(messageAttributes),
-                    forKey: Constants.uiAlertControllerAttributedMessageKeyName
-                )
-            }
+            alertController.applyAttributedStrings(
+                messageAttributes: messageAttributes,
+                titleAttributes: titleAttributes
+            )
 
-            if let titleAttributes,
-               let title = alertController.title {
-                alertController.setValue(
-                    title.attributed(titleAttributes),
-                    forKey: Constants.uiAlertControllerAttributedTitleKeyName
-                )
-            }
-
-            Config.shared.presentationDelegate?.present(alertController)
+            AlertKit.config.presentationDelegate?.present(alertController)
         }
 
         // MARK: - Translate
 
         private func translate(_ keys: [TranslationOptionKey]) async -> Result<ConfirmationAlert, Error> {
-            let translator = Config.shared.translationDelegate ?? TranslationService.shared
-
-            var uniqueKeys = [TranslationOptionKey]()
-            for key in keys where !uniqueKeys.contains(key) {
-                uniqueKeys.append(key)
-            }
-
+            let uniqueKeys = keys.unique
             guard !uniqueKeys.isEmpty else { return .success(self) }
 
-            let getTranslationsResult = await translator.getTranslations(
-                translationInputs(for: uniqueKeys),
-                languagePair: .init(
-                    from: Config.shared.sourceLanguageCode,
-                    to: Config.shared.targetLanguageCode
-                ),
-                hud: Config.shared.translationHUDConfig,
-                timeout: Config.shared.translationTimeoutConfig
+            let getTranslationsResult = await AlertKit.getTranslations(
+                for: translationInputs(for: uniqueKeys)
             )
 
             switch getTranslationsResult {
             case let .success(translations):
-                var translatedTitle: String?
-                if let title {
-                    translatedTitle = translations.firstOutput(matching: title)
-                }
-
                 let alert: AKConfirmationAlert = .init(
-                    title: translatedTitle,
+                    title: title.map { translations.firstOutput(matching: $0) },
                     message: translations.firstOutput(matching: message),
                     cancelButtonTitle: translations.firstOutput(matching: cancelButtonTitle),
                     cancelButtonStyle: cancelButtonStyle,
@@ -202,7 +252,7 @@ public extension AlertKit {
                 return .success(alert)
 
             case let .failure(error):
-                return .failure(.translationFailed(error.localizedDescription))
+                return .failure(error)
             }
         }
 
@@ -227,12 +277,7 @@ public extension AlertKit {
                 }
             }
 
-            var uniqueInputs = [TranslationInput]()
-            for input in inputs where !uniqueInputs.contains(input) {
-                uniqueInputs.append(input)
-            }
-
-            return uniqueInputs.filter { $0.value != Constants.defaultActionTitle }
+            return inputs.nonDefaultUnique
         }
     }
 }

@@ -1,4 +1,4 @@
-// swift-tools-version: 5.10
+// swift-tools-version: 6.0
 
 /* Native */
 import PackageDescription
@@ -18,7 +18,7 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/grantbrooksgoodman/translator", branch: "main"),
+        .package(url: "https://github.com/grantbrooksgoodman/translator", branch: "swift-6"),
 //        .package(url: "https://github.com/nicklockwood/SwiftFormat", branch: "main"),
 //        .package(url: "https://github.com/realm/SwiftLint", branch: "main"),
     ],
@@ -29,5 +29,6 @@ let package = Package(
             path: "Sources",
             plugins: [ /* .plugin(name: "SwiftLintBuildToolPlugin", package: "SwiftLint") */ ]
         ),
-    ]
+    ],
+    swiftLanguageModes: [.v6]
 )
