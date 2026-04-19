@@ -11,6 +11,13 @@ import Foundation
 extension String {
     // MARK: - Properties
 
+    /// Returns a copy of the string with translation sentinel
+    /// characters removed.
+    ///
+    /// The characters `⌘` (U+2318), `⁂` (U+2042), and `※` (U+203B)
+    /// are used as internal delimiters during translation
+    /// tokenization. They must be stripped from all user-facing text
+    /// before display.
     var sanitized: String {
         replacingOccurrences(of: "⌘", with: "")
             .replacingOccurrences(of: "⁂", with: "")

@@ -13,6 +13,44 @@ import UIKit
 import Translator
 
 public extension AlertKit {
+    /// An action sheet that displays a title, message, and a scrollable
+    /// list of actions.
+    ///
+    /// Use `ActionSheet` to present a set of choices related to an action
+    /// the user initiates. Create an action sheet with the actions you
+    /// want to offer, then call ``present(translating:)`` to display it:
+    ///
+    /// ```swift
+    /// let actionSheet = AKActionSheet(
+    ///     title: "Share Photo",
+    ///     actions: [
+    ///         .init("Save to Camera Roll") {
+    ///             savePhoto()
+    ///         },
+    ///         .init("Copy Link") {
+    ///             copyLink()
+    ///         },
+    ///     ]
+    /// )
+    ///
+    /// await actionSheet.present()
+    /// ```
+    ///
+    /// A cancel button is added automatically unless one of the provided
+    /// actions uses the ``ActionStyle/cancel`` style. You can customize
+    /// the cancel button's title through the `cancelButtonTitle`
+    /// parameter.
+    ///
+    /// On iOS 26 and later, the action sheet may be presented as a
+    /// popover. Provide a ``SourceItem`` to specify the view that the
+    /// popover anchors to.
+    ///
+    /// By default, ``present(translating:)`` translates all content into
+    /// the configured target language. Pass an empty array to skip
+    /// translation.
+    ///
+    /// - Important: The `actions` array must contain at least one action.
+    ///   Passing an empty array triggers a runtime assertion failure.
     @MainActor
     final class ActionSheet {
         // MARK: - Properties
@@ -51,6 +89,20 @@ public extension AlertKit {
 
         // MARK: - Init
 
+        /// Creates an action sheet with the specified title, message,
+        /// actions, cancel button title, and source item.
+        ///
+        /// - Parameters:
+        ///   - title: The title of the action sheet. The default is `nil`.
+        ///   - message: The descriptive message of the action sheet. The
+        ///     default is `nil`.
+        ///   - actions: The actions to display in the action sheet.
+        ///   - cancelButtonTitle: The title of the cancel button. The
+        ///     default is "Cancel". This button is added automatically
+        ///     unless one of the provided actions uses the
+        ///     ``ActionStyle/cancel`` style.
+        ///   - sourceItem: The element that the action sheet's popover
+        ///     anchors to on iOS 26 and later. The default is `nil`.
         public init(
             title: String? = nil,
             message: String? = nil,
@@ -68,26 +120,62 @@ public extension AlertKit {
 
         // MARK: - Enable/Disable Actions
 
+        /// Disables the action at the specified index in any currently
+        /// presented alert controller.
+        ///
+        /// - Parameter index: The zero-based index of the action to
+        ///   disable.
         public func disableAction(at index: Int) {
             Alert.disableAction(at: index)
         }
 
+        /// Enables the action at the specified index in any currently
+        /// presented alert controller.
+        ///
+        /// - Parameter index: The zero-based index of the action to
+        ///   enable.
         public func enableAction(at index: Int) {
             Alert.enableAction(at: index)
         }
 
         // MARK: - Set Attributed Strings
 
+        /// Sets the attributed string configuration for the action
+        /// sheet's message.
+        ///
+        /// Call this method before ``present(translating:)`` to customize
+        /// the appearance of the message text.
+        ///
+        /// - Parameter messageAttributes: The attributed string
+        ///   configuration to apply to the message.
         public func setMessageAttributes(_ messageAttributes: AttributedStringConfig) {
             self.messageAttributes = messageAttributes
         }
 
+        /// Sets the attributed string configuration for the action
+        /// sheet's title.
+        ///
+        /// Call this method before ``present(translating:)`` to customize
+        /// the appearance of the title text.
+        ///
+        /// - Parameter titleAttributes: The attributed string
+        ///   configuration to apply to the title.
         public func setTitleAttributes(_ titleAttributes: AttributedStringConfig) {
             self.titleAttributes = titleAttributes
         }
 
         // MARK: - Present
 
+        /// Presents the action sheet and suspends until the user
+        /// selects an action or cancels.
+        ///
+        /// This method translates the action sheet's content before
+        /// presentation according to the specified keys. Each key
+        /// identifies a part of the action sheet to translate. To skip
+        /// translation, pass an empty array.
+        ///
+        /// - Parameter keys: The parts of the action sheet to translate.
+        ///   The default includes all translatable content.
         public func present(
             translating keys: [TranslationOptionKey] = [
                 .actions(),
@@ -100,7 +188,12 @@ public extension AlertKit {
                 shouldTranslate: !keys.isEmpty,
                 presentDirectly: {
                     await withCheckedContinuation { continuation in
-                        present { continuation.resume() }
+                        let continuation = ContinuationGuard(
+                            continuation,
+                            fallbackValue: ()
+                        )
+
+                        present { continuation.resume(returning: ()) }
                     }
                 },
                 translate: { await translate(keys) },
@@ -116,6 +209,10 @@ public extension AlertKit {
                 preferredStyle: .actionSheet
             )
 
+            // When the action sheet has a title but no message, promote
+            // the title into the message position. UIAlertController
+            // renders messages with a smaller, lighter font that
+            // produces a more natural layout for title-only action sheets.
             if message == nil,
                let title {
                 alertController = .init(

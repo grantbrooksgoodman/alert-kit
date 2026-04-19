@@ -65,7 +65,26 @@ extension AlertKit {
         line: Int = #line
     ) async -> R {
         guard shouldTranslate else { return await presentDirectly() }
+
+        // Yield to the main run loop so pending UI work can complete
+        // before a potentially long-running translation begins.
+        await Task.yield()
         let translateResult = await translate()
+
+        // If the task was cancelled during translation (e.g., by a
+        // caller-imposed timeout), fall back to untranslated
+        // presentation to avoid indefinite stalling.
+        guard !Task.isCancelled else {
+            config.loggerDelegate?.log(
+                "Translation cancelled; presenting untranslated content.",
+                sender: sender,
+                fileName: fileName,
+                function: function,
+                line: line
+            )
+
+            return await presentDirectly()
+        }
 
         switch translateResult {
         case let .success(translated):

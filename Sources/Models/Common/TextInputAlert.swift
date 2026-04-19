@@ -13,6 +13,46 @@ import UIKit
 import Translator
 
 public extension AlertKit {
+    /// An alert that prompts the user for text input.
+    ///
+    /// Use `TextInputAlert` to present an alert with a single text field.
+    /// The alert displays a cancel button and a confirm button, and
+    /// returns the entered text when the user confirms:
+    ///
+    /// ```swift
+    /// let alert = AKTextInputAlert(
+    ///     title: "Rename",
+    ///     message: "Enter a new name for this item.",
+    ///     attributes: .init(
+    ///         capitalizationType: .words,
+    ///         placeholderText: "Item name"
+    ///     )
+    /// )
+    ///
+    /// if let name = await alert.present() {
+    ///     rename(to: name)
+    /// }
+    /// ```
+    ///
+    /// ## Observing Text Changes
+    ///
+    /// To respond to changes in the text field as the user types,
+    /// register a callback with ``onTextFieldChange(_:)`` before
+    /// presenting the alert:
+    ///
+    /// ```swift
+    /// alert.onTextFieldChange { textField in
+    ///     guard let text = textField?.text else { return }
+    ///     // Respond to changes in the text field.
+    /// }
+    /// ```
+    ///
+    /// The observer is automatically removed when the alert is dismissed.
+    ///
+    /// By default, ``present(translating:)`` translates the alert's
+    /// title, message, button titles, placeholder text, and sample text
+    /// into the configured target language. Pass an empty array to skip
+    /// translation.
     @MainActor
     final class TextInputAlert {
         // MARK: - Properties
@@ -36,6 +76,23 @@ public extension AlertKit {
 
         // MARK: - Object Lifecycle
 
+        /// Creates a text input alert with the specified title, message,
+        /// text field attributes, and button configuration.
+        ///
+        /// - Parameters:
+        ///   - title: The title of the alert. The default is `nil`.
+        ///   - message: The descriptive message of the alert.
+        ///   - attributes: The configuration for the text field,
+        ///     including keyboard type, capitalization, and placeholder
+        ///     text. The default is a standard text field configuration.
+        ///   - cancelButtonTitle: The title of the cancel button. The
+        ///     default is "Cancel".
+        ///   - cancelButtonStyle: The style of the cancel button. The
+        ///     default is ``ActionStyle/cancel``.
+        ///   - confirmButtonTitle: The title of the confirm button. The
+        ///     default is "Confirm".
+        ///   - confirmButtonStyle: The style of the confirm button. The
+        ///     default is ``ActionStyle/preferred``.
         public init(
             title: String? = nil,
             message: String,
@@ -61,16 +118,39 @@ public extension AlertKit {
 
         // MARK: - Enable/Disable Actions
 
+        /// Disables the action at the specified index in any currently
+        /// presented alert controller.
+        ///
+        /// - Parameter index: The zero-based index of the action to
+        ///   disable.
         public func disableAction(at index: Int) {
             Alert.disableAction(at: index)
         }
 
+        /// Enables the action at the specified index in any currently
+        /// presented alert controller.
+        ///
+        /// - Parameter index: The zero-based index of the action to
+        ///   enable.
         public func enableAction(at index: Int) {
             Alert.enableAction(at: index)
         }
 
         // MARK: - On Text Field Change
 
+        /// Registers a callback that is invoked each time the text
+        /// field's content changes.
+        ///
+        /// Call this method before ``present(translating:)`` to begin
+        /// receiving change notifications once the alert is presented.
+        /// The callback receives the text field, which you can use to
+        /// inspect the current input or modify the alert's actions.
+        ///
+        /// The observer is automatically removed when the alert is
+        /// dismissed.
+        ///
+        /// - Parameter perform: The closure to call when the text
+        ///   field's content changes.
         public func onTextFieldChange(
             _ perform: @escaping @MainActor (UITextField?) -> Void
         ) {
@@ -95,17 +175,45 @@ public extension AlertKit {
 
         // MARK: - Set Attributed Strings
 
+        /// Sets the attributed string configuration for the alert's
+        /// message.
+        ///
+        /// Call this method before ``present(translating:)`` to customize
+        /// the appearance of the message text.
+        ///
+        /// - Parameter messageAttributes: The attributed string
+        ///   configuration to apply to the message.
         public func setMessageAttributes(_ messageAttributes: AttributedStringConfig) {
             self.messageAttributes = messageAttributes
         }
 
+        /// Sets the attributed string configuration for the alert's
+        /// title.
+        ///
+        /// Call this method before ``present(translating:)`` to customize
+        /// the appearance of the title text.
+        ///
+        /// - Parameter titleAttributes: The attributed string
+        ///   configuration to apply to the title.
         public func setTitleAttributes(_ titleAttributes: AttributedStringConfig) {
             self.titleAttributes = titleAttributes
         }
 
         // MARK: - Present
 
-        /// - Returns: On confirmation, the text entered into the text field.
+        /// Presents the alert and suspends until the user confirms or
+        /// cancels.
+        ///
+        /// This method translates the alert's content before presentation
+        /// according to the specified keys. Each key identifies a part of
+        /// the alert to translate. To skip translation, pass an empty
+        /// array.
+        ///
+        /// - Parameter keys: The parts of the alert to translate. The
+        ///   default includes all translatable content.
+        ///
+        /// - Returns: The text the user entered, or `nil` if they
+        ///   canceled.
         public func present(
             translating keys: [TranslationOptionKey] = [
                 .cancelButtonTitle,
@@ -120,6 +228,11 @@ public extension AlertKit {
                 shouldTranslate: !keys.isEmpty,
                 presentDirectly: {
                     await withCheckedContinuation { continuation in
+                        let continuation = ContinuationGuard(
+                            continuation,
+                            fallbackValue: nil
+                        )
+
                         present { continuation.resume(returning: $0) }
                     }
                 },
@@ -141,15 +254,21 @@ public extension AlertKit {
             let cancelAction = UIAlertAction(
                 title: cancelButtonTitle.sanitized,
                 style: cancelButtonStyle.uiAlertStyle
-            ) { _ in
-                completion(nil)
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.removeTextFieldChangeObserver()
+                    completion(nil)
+                }
             }
 
             let confirmAction = UIAlertAction(
                 title: confirmButtonTitle.sanitized,
                 style: confirmButtonStyle.uiAlertStyle
-            ) { _ in
-                completion(alertController.textFields?.first?.text)
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.removeTextFieldChangeObserver()
+                    completion(alertController.textFields?.first?.text)
+                }
             }
 
             alertController.addAction(cancelAction)
@@ -190,7 +309,7 @@ public extension AlertKit {
                     object: window,
                     queue: .main
                 ) { [weak self] _ in
-                    Task { @MainActor in
+                    Task { @MainActor [weak self] in
                         self?.removeTextFieldChangeObserver()
                     }
                 }
