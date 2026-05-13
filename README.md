@@ -37,12 +37,12 @@ The framework defines five alert types:
 | Type | Purpose |
 | --- | --- |
 | [`Alert`](Sources/Models/Common/Alert.swift) | A general-purpose alert with a title, message, and custom actions |
-| [`ActionSheet`](Sources/Models/Common/ActionSheet.swift) | A scrollable list of actions presented from the bottom of the screen |
+| [`ActionSheet`](Sources/Models/Common/ActionSheet.swift) | A list of actions presented as a popover (iOS 26+) or from the bottom of the screen (iOS ≤ 18) |
 | [`ConfirmationAlert`](Sources/Models/Common/ConfirmationAlert.swift) | A two-button dialog that resolves to a Boolean result |
 | [`ErrorAlert`](Sources/Models/Common/ErrorAlert.swift) | An alert that presents an error with optional reporting |
 | [`TextInputAlert`](Sources/Models/Common/TextInputAlert.swift) | An alert with a text field that returns the entered string |
 
-All alert types support Swift concurrency with `async`/`await` and translate their content automatically before presentation. You control which parts are translated through each type's [`TranslationOptionKey`](Sources/Models/Core/TranslationOptionKeys.swift), and can skip translation entirely by passing an empty array.
+All alert types support Swift concurrency with `async`/`await` and translate their content automatically before presentation. You control which parts are translated through each type's [`TranslationOptionKey`](Sources/Models/Core/Public/TranslationOptionKeys.swift), and can skip translation entirely by passing an empty array.
 
 ---
 
@@ -101,7 +101,7 @@ await alert.present()
 
 ### Action Sheet
 
-[`ActionSheet`](Sources/Models/Common/ActionSheet.swift) presents a scrollable list of actions from the bottom of the screen. A cancel button is added automatically unless one of the provided actions uses the `cancel` style. You can customize the cancel button's title through the `cancelButtonTitle` parameter.
+[`ActionSheet`](Sources/Models/Common/ActionSheet.swift) presents a list of actions as a popover (iOS 26+) or from the bottom of the screen (iOS ≤ 18). A cancel button is added automatically unless one of the provided actions uses the `cancel` style. You can customize the cancel button's title through the `cancelButtonTitle` parameter.
 
 ```swift
 let actionSheet = AKActionSheet(
@@ -121,7 +121,7 @@ await actionSheet.present()
 
 When an `ActionSheet` is created with a `title` but no `message`, the title is displayed in the message position of the underlying `UIAlertController`. This produces a more natural visual layout for title-only action sheets, as `UIAlertController` renders messages with a smaller, lighter font that works better for short descriptive text in this context.
 
-On iOS 26 and later, the action sheet may be presented as a popover. Provide a [`SourceItem`](Sources/Models/Core/ActionSheetSourceItem.swift) to specify the view that the popover anchors to.
+On iOS 26 and later, the action sheet may be presented as a popover. Provide a [`SourceItem`](Sources/Models/Core/Public/ActionSheetSourceItem.swift) to specify the view that the popover anchors to.
 
 ### Confirmation Alert
 
@@ -161,7 +161,7 @@ if await confirmationAlert.present() {
 await AKErrorAlert(error).present()
 ```
 
-When the error's `isReportable` property is `true` and the logger delegate does not report errors automatically, the alert includes a "Send Error Report" button. Tapping this button files a report through the registered [`ReportDelegate`](Sources/Protocols/ReportDelegate.swift). Otherwise, the alert displays the error description as the title with the error identifier in the message body.
+When the error's `isReportable` property is `true`, a [`ReportDelegate`](Sources/Protocols/ReportDelegate.swift) has been configured, and the logger delegate does not report errors automatically, the alert includes a "Send Error Report" button. Tapping this button files a report through the registered [`ReportDelegate`](Sources/Protocols/ReportDelegate.swift). Otherwise, the alert displays the error description as the title with the error identifier in the message body.
 
 Conform your error types to [`Errorable`](Sources/Protocols/Errorable.swift) to use them with `ErrorAlert`:
 
@@ -211,7 +211,7 @@ The observer is automatically removed when the alert is dismissed.
 
 ## Actions
 
-An [`Action`](Sources/Models/Core/Action.swift) pairs a button title with a closure that executes when the user taps the corresponding button. You specify the visual style using [`ActionStyle`](Sources/Models/Core/ActionStyle.swift):
+An [`Action`](Sources/Models/Core/Public/Action.swift) pairs a button title with a closure that executes when the user taps the corresponding button. You specify the visual style using [`ActionStyle`](Sources/Models/Core/Public/ActionStyle.swift):
 
 ```swift
 let action = AKAction("Delete", style: .destructive) {
@@ -227,11 +227,11 @@ The available styles are:
 
 | Style | Description |
 | --- | --- |
-| `cancel` | Cancels the alert without changes |
-| `default` | The default button style |
-| `destructive` | Indicates the action might change or delete data |
-| `preferred` | The alert's preferred action, given visual emphasis |
-| `destructivePreferred` | A destructive action that is also the alert's preferred action |
+| `cancel` | Dismisses the alert without changes. |
+| `default` | The default button style. |
+| `destructive` | Indicates the action might change or delete data. |
+| `preferred` | The alert's preferred action, given visual emphasis. |
+| `destructivePreferred` | A destructive action that is also the alert's preferred action. |
 
 You can enable or disable actions on a presented alert by calling `disableAction(at:)` or `enableAction(at:)` with the zero-based index of the action.
 
@@ -239,7 +239,7 @@ You can enable or disable actions on a presented alert by calling `disableAction
 
 ## Translation
 
-By default, every alert translates its content into the configured target language before presentation. The `present(translating:)` method accepts an array of [`TranslationOptionKey`](Sources/Models/Core/TranslationOptionKeys.swift) values that identify which parts of the alert to translate.
+By default, every alert translates its content into the configured target language before presentation. The `present(translating:)` method accepts an array of [`TranslationOptionKey`](Sources/Models/Core/Public/TranslationOptionKeys.swift) values that identify which parts of the alert to translate.
 
 Each alert type defines its own `TranslationOptionKey` enum. For example, `Alert.TranslationOptionKey` provides `.title`, `.message`, and `.actions()`, while `TextInputAlert.TranslationOptionKey` adds `.placeholderText` and `.sampleText`.
 
@@ -274,7 +274,7 @@ Configure translation behavior through `AlertKit.config`:
 | HUD appearance | `overrideTranslationHUDConfig(_:)` | 2-second delay, modal |
 | Timeout behavior | `overrideTranslationTimeoutConfig(_:)` | 10 seconds, falls back to originals |
 
-A [`HUDConfig`](Sources/Models/Core/HUDConfig.swift) controls when and how a heads-up display appears during translation:
+A [`HUDConfig`](Sources/Models/Core/Public/HUDConfig.swift) controls when and how a heads-up display appears during translation:
 
 ```swift
 AlertKit.config.overrideTranslationHUDConfig(
@@ -282,7 +282,7 @@ AlertKit.config.overrideTranslationHUDConfig(
 )
 ```
 
-A [`TranslationTimeoutConfig`](Sources/Models/Core/TranslationTimeoutConfig.swift) controls the maximum wait duration and failure behavior. When `returnsInputsOnFailure` is `true`, a timed-out translation falls back to the original untranslated strings rather than presenting an error:
+A [`TranslationTimeoutConfig`](Sources/Models/Core/Public/TranslationTimeoutConfig.swift) controls the maximum wait duration and failure behavior. When `returnsInputsOnFailure` is `true`, a timed-out translation falls back to the original untranslated strings rather than presenting an error:
 
 ```swift
 AlertKit.config.overrideTranslationTimeoutConfig(
@@ -315,7 +315,7 @@ Custom `TranslationDelegate` implementations should check `Task.isCancelled` dur
 
 ### Attributed Strings
 
-Use [`AttributedStringConfig`](Sources/Models/Core/AttributedStringConfig.swift) to customize the appearance of an alert's title or message. Call `setTitleAttributes(_:)` or `setMessageAttributes(_:)` before presenting:
+Use [`AttributedStringConfig`](Sources/Models/Core/Public/AttributedStringConfig.swift) to customize the appearance of an alert's title or message. Call `setTitleAttributes(_:)` or `setMessageAttributes(_:)` before presenting:
 
 ```swift
 let alert = AKAlert(message: "Operation complete.")
@@ -345,7 +345,7 @@ Attributed string customization is available on [`Alert`](Sources/Models/Common/
 
 ### Text Field Configuration
 
-Use [`TextFieldAttributes`](Sources/Models/Core/TextFieldAttributes.swift) to configure the text field in a [`TextInputAlert`](Sources/Models/Common/TextInputAlert.swift). You can specify the keyboard type, autocapitalization, autocorrection, placeholder text, sample text, secure entry, and text alignment:
+Use [`TextFieldAttributes`](Sources/Models/Core/Public/TextFieldAttributes.swift) to configure the text field in a [`TextInputAlert`](Sources/Models/Common/TextInputAlert.swift). You can specify the keyboard type, autocapitalization, autocorrection, placeholder text, sample text, secure entry, and text alignment:
 
 ```swift
 let attributes = AlertKit.TextFieldAttributes(

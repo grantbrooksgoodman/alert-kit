@@ -17,7 +17,8 @@ import Foundation
 /// controller is torn down while the alert is still visible.
 ///
 /// All access is expected to occur on the main thread.
-final class ContinuationGuard<T: Sendable>: @unchecked Sendable {
+@MainActor
+final class ContinuationGuard<T: Sendable> {
     // MARK: - Properties
 
     private let fallbackValue: T

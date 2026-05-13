@@ -23,7 +23,8 @@ public extension AlertKit {
     /// await alert.present()
     /// ```
     ///
-    /// When the error's ``Errorable/isReportable`` property is `true`
+    /// When the error's ``Errorable/isReportable`` property is `true`,
+    /// a ``ReportDelegate`` has been registered,
     /// and the logger delegate does not report errors automatically, the
     /// alert includes a "Send Error Report" button that files a report
     /// through the configured ``ReportDelegate``. Otherwise, the alert
@@ -130,12 +131,13 @@ public extension AlertKit {
             )
 
             if error.isReportable,
-               AlertKit.config.loggerDelegate?.reportsErrorsAutomatically == false {
+               AlertKit.config.loggerDelegate?.reportsErrorsAutomatically == false,
+               let reportDelegate = AlertKit.config.reportDelegate {
                 let reportAction = UIAlertAction(
                     title: sendErrorReportButtonTitle.sanitized,
                     style: .default
                 ) { _ in
-                    AlertKit.config.reportDelegate?.fileReport(self.error)
+                    reportDelegate.fileReport(self.error)
                     completion()
                 }
 
@@ -152,8 +154,8 @@ public extension AlertKit {
             ) { _ in
                 completion()
             }
-            alertController.addAction(dismissAction)
 
+            alertController.addAction(dismissAction)
             AlertKit.config.presentationDelegate?.present(alertController)
         }
 

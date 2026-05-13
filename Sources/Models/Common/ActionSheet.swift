@@ -13,8 +13,8 @@ import UIKit
 import Translator
 
 public extension AlertKit {
-    /// An action sheet that displays a title, message, and a scrollable
-    /// list of actions.
+    /// An action sheet that displays a title, message, and a list of
+    /// actions.
     ///
     /// Use `ActionSheet` to present a set of choices related to an action
     /// the user initiates. Create an action sheet with the actions you
