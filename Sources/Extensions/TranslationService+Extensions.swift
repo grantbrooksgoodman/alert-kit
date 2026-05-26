@@ -18,8 +18,8 @@ extension TranslationService: AlertKit.TranslationDelegate {
         languagePair: LanguagePair,
         hud hudConfig: AlertKit.HUDConfig? = nil,
         timeout timeoutConfig: AlertKit.TranslationTimeoutConfig = AlertKit.config.translationTimeoutConfig
-    ) async -> Result<[Translation], TranslationError> {
-        await getTranslations(
+    ) async throws -> [Translation] {
+        try await getTranslations(
             inputs,
             languagePair: languagePair
         )
@@ -30,34 +30,30 @@ extension TranslationService: AlertKit.TranslationDelegate {
 extension AlertKit {
     static func getTranslations(
         for inputs: [TranslationInput]
-    ) async -> Result<[Translation], Error> {
+    ) async throws -> [Translation] {
         let translator = AlertKit.config.translationDelegate ?? TranslationService.shared
 
-        let getTranslationsResult = await translator.getTranslations(
-            inputs,
-            languagePair: .init(
-                from: AlertKit.config.sourceLanguageCode,
-                to: AlertKit.config.targetLanguageCode
-            ),
-            hud: AlertKit.config.translationHUDConfig,
-            timeout: AlertKit.config.translationTimeoutConfig
-        )
-
-        switch getTranslationsResult {
-        case let .success(translations):
-            return .success(translations)
-
-        case let .failure(error):
-            return .failure(.translationFailed(
+        do {
+            return try await translator.getTranslations(
+                inputs,
+                languagePair: .init(
+                    from: AlertKit.config.sourceLanguageCode,
+                    to: AlertKit.config.targetLanguageCode
+                ),
+                hud: AlertKit.config.translationHUDConfig,
+                timeout: AlertKit.config.translationTimeoutConfig
+            )
+        } catch {
+            throw AlertKit.Error.translationFailed(
                 error.localizedDescription
-            ))
+            )
         }
     }
 
     static func presentWithTranslation<T, R>(
         shouldTranslate: Bool,
         presentDirectly: () async -> R,
-        translate: () async -> Result<T, Error>,
+        translate: () async throws -> T,
         presentTranslated: (T) async -> R,
         sender: Any,
         fileName: String = #fileID,
@@ -69,30 +65,31 @@ extension AlertKit {
         // Yield to the main run loop so pending UI work can complete
         // before a potentially long-running translation begins.
         await Task.yield()
-        let translateResult = await translate()
 
-        // If the task was cancelled during translation (e.g., by a
-        // caller-imposed timeout), fall back to untranslated
-        // presentation to avoid indefinite stalling.
-        guard !Task.isCancelled else {
-            config.loggerDelegate?.log(
-                "Translation cancelled; presenting untranslated content.",
-                sender: sender,
-                fileName: fileName,
-                function: function,
-                line: line
-            )
+        do {
+            let translated = try await translate()
 
-            return await presentDirectly()
-        }
+            // If the task was cancelled during translation (e.g., by
+            // a caller-imposed timeout), fall back to untranslated
+            // presentation to avoid indefinite stalling.
+            guard !Task.isCancelled else {
+                config.loggerDelegate?.log(
+                    "Translation cancelled; presenting untranslated content.",
+                    sender: sender,
+                    fileName: fileName,
+                    function: function,
+                    line: line
+                )
 
-        switch translateResult {
-        case let .success(translated):
+                return await presentDirectly()
+            }
+
             return await presentTranslated(translated)
-
-        case let .failure(error):
+        } catch {
             config.loggerDelegate?.log(
-                error.localizedDescription,
+                Task.isCancelled
+                    ? "Translation cancelled; presenting untranslated content."
+                    : error.localizedDescription,
                 sender: sender,
                 fileName: fileName,
                 function: function,

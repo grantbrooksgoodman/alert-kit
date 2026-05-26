@@ -8,8 +8,7 @@ import PackageDescription
 let package = Package(
     name: "AlertKit",
     platforms: [
-        .iOS(.v17),
-        .tvOS(.v17),
+        .iOS(.v18),
     ],
     products: [
         .library(
@@ -18,17 +17,23 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/grantbrooksgoodman/translator", branch: "swift-6"),
-//        .package(url: "https://github.com/nicklockwood/SwiftFormat", branch: "main"),
-//        .package(url: "https://github.com/realm/SwiftLint", branch: "main"),
+        .package(
+            url: "https://github.com/grantbrooksgoodman/translator",
+            branch: "main"
+        ),
     ],
     targets: [
         .target(
             name: "AlertKit",
-            dependencies: [.product(name: "Translator", package: "translator", moduleAliases: nil)],
+            dependencies: [
+                .product(
+                    name: "Translator",
+                    package: "translator",
+                    moduleAliases: nil
+                ),
+            ],
             path: "Sources",
-            plugins: [ /* .plugin(name: "SwiftLintBuildToolPlugin", package: "SwiftLint") */ ]
+            swiftSettings: [.swiftLanguageMode(.v6)]
         ),
-    ],
-    swiftLanguageModes: [.v6]
+    ]
 )

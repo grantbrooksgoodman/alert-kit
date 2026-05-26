@@ -13,8 +13,8 @@ import UIKit
 import Translator
 
 public extension AlertKit {
-    /// An action sheet that displays a title, message, and a scrollable
-    /// list of actions.
+    /// An action sheet that displays a title, message, and a list of
+    /// actions.
     ///
     /// Use `ActionSheet` to present a set of choices related to an action
     /// the user initiates. Create an action sheet with the actions you
@@ -148,7 +148,9 @@ public extension AlertKit {
         ///
         /// - Parameter messageAttributes: The attributed string
         ///   configuration to apply to the message.
-        public func setMessageAttributes(_ messageAttributes: AttributedStringConfig) {
+        public func setMessageAttributes(
+            _ messageAttributes: AttributedStringConfig
+        ) {
             self.messageAttributes = messageAttributes
         }
 
@@ -160,7 +162,9 @@ public extension AlertKit {
         ///
         /// - Parameter titleAttributes: The attributed string
         ///   configuration to apply to the title.
-        public func setTitleAttributes(_ titleAttributes: AttributedStringConfig) {
+        public func setTitleAttributes(
+            _ titleAttributes: AttributedStringConfig
+        ) {
             self.titleAttributes = titleAttributes
         }
 
@@ -196,7 +200,7 @@ public extension AlertKit {
                         present { continuation.resume(returning: ()) }
                     }
                 },
-                translate: { await translate(keys) },
+                translate: { try await translate(keys) },
                 presentTranslated: { await $0.present(translating: []) },
                 sender: self
             )
@@ -248,40 +252,40 @@ public extension AlertKit {
 
         // MARK: - Translate
 
-        private func translate(_ keys: [TranslationOptionKey]) async -> Result<ActionSheet, Error> {
+        private func translate(
+            _ keys: [TranslationOptionKey]
+        ) async throws -> ActionSheet {
             let uniqueKeys = keys.unique
-            guard !uniqueKeys.isEmpty else { return .success(self) }
+            guard !uniqueKeys.isEmpty else { return self }
 
-            let result = await AlertKit.getTranslations(for: translationInputs(for: uniqueKeys))
+            let translations = try await AlertKit.getTranslations(
+                for: translationInputs(for: uniqueKeys)
+            )
 
-            switch result {
-            case let .success(translations):
-                let alert: AKActionSheet = .init(
-                    title: title.map { translations.firstOutput(matching: $0) },
-                    message: message.map { translations.firstOutput(matching: $0) },
-                    actions: actions.applying(translations),
-                    cancelButtonTitle: translations.firstOutput(matching: cancelButtonTitle),
-                    sourceItem: sourceItem
-                )
+            let alert: AKActionSheet = .init(
+                title: title.map { translations.firstOutput(matching: $0) },
+                message: message.map { translations.firstOutput(matching: $0) },
+                actions: actions.applying(translations),
+                cancelButtonTitle: translations.firstOutput(matching: cancelButtonTitle),
+                sourceItem: sourceItem
+            )
 
-                if let messageAttributes {
-                    alert.setMessageAttributes(messageAttributes)
-                }
-
-                if let titleAttributes {
-                    alert.setTitleAttributes(titleAttributes)
-                }
-
-                return .success(alert)
-
-            case let .failure(error):
-                return .failure(error)
+            if let messageAttributes {
+                alert.setMessageAttributes(messageAttributes)
             }
+
+            if let titleAttributes {
+                alert.setTitleAttributes(titleAttributes)
+            }
+
+            return alert
         }
 
         // MARK: - Translation Inputs
 
-        private func translationInputs(for optionKeys: [TranslationOptionKey]) -> [TranslationInput] {
+        private func translationInputs(
+            for optionKeys: [TranslationOptionKey]
+        ) -> [TranslationInput] {
             var inputs = [TranslationInput]()
             for key in optionKeys {
                 switch key {

@@ -38,14 +38,14 @@ public extension AlertKit {
         ///   - timeoutConfig: The configuration that controls
         ///     timeout behavior.
         ///
-        /// - Returns: A `Result` containing the completed
-        ///   translations on success, or a `TranslationError` on
-        ///   failure.
+        /// - Returns: The completed translations.
+        ///
+        /// - Throws: An error if the translation operation fails.
         func getTranslations(
             _ inputs: [TranslationInput],
             languagePair: LanguagePair,
             hud hudConfig: HUDConfig?,
             timeout timeoutConfig: TranslationTimeoutConfig
-        ) async -> Result<[Translation], TranslationError>
+        ) async throws -> [Translation]
     }
 }

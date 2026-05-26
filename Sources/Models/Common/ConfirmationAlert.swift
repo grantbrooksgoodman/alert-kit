@@ -125,7 +125,9 @@ public extension AlertKit {
         ///
         /// - Parameter messageAttributes: The attributed string
         ///   configuration to apply to the message.
-        public func setMessageAttributes(_ messageAttributes: AttributedStringConfig) {
+        public func setMessageAttributes(
+            _ messageAttributes: AttributedStringConfig
+        ) {
             self.messageAttributes = messageAttributes
         }
 
@@ -137,7 +139,9 @@ public extension AlertKit {
         ///
         /// - Parameter titleAttributes: The attributed string
         ///   configuration to apply to the title.
-        public func setTitleAttributes(_ titleAttributes: AttributedStringConfig) {
+        public func setTitleAttributes(
+            _ titleAttributes: AttributedStringConfig
+        ) {
             self.titleAttributes = titleAttributes
         }
 
@@ -176,13 +180,15 @@ public extension AlertKit {
                         present { continuation.resume(returning: $0) }
                     }
                 },
-                translate: { await translate(keys) },
+                translate: { try await translate(keys) },
                 presentTranslated: { await $0.present(translating: []) },
                 sender: self
             )
         }
 
-        private func present(completion: @escaping (Bool) -> Void) {
+        private func present(
+            completion: @escaping (Bool) -> Void
+        ) {
             let alertController = UIAlertController(
                 title: title?.sanitized,
                 message: message.sanitized,
@@ -222,43 +228,41 @@ public extension AlertKit {
 
         // MARK: - Translate
 
-        private func translate(_ keys: [TranslationOptionKey]) async -> Result<ConfirmationAlert, Error> {
+        private func translate(
+            _ keys: [TranslationOptionKey]
+        ) async throws -> ConfirmationAlert {
             let uniqueKeys = keys.unique
-            guard !uniqueKeys.isEmpty else { return .success(self) }
+            guard !uniqueKeys.isEmpty else { return self }
 
-            let getTranslationsResult = await AlertKit.getTranslations(
+            let translations = try await AlertKit.getTranslations(
                 for: translationInputs(for: uniqueKeys)
             )
 
-            switch getTranslationsResult {
-            case let .success(translations):
-                let alert: AKConfirmationAlert = .init(
-                    title: title.map { translations.firstOutput(matching: $0) },
-                    message: translations.firstOutput(matching: message),
-                    cancelButtonTitle: translations.firstOutput(matching: cancelButtonTitle),
-                    cancelButtonStyle: cancelButtonStyle,
-                    confirmButtonTitle: translations.firstOutput(matching: confirmButtonTitle),
-                    confirmButtonStyle: confirmButtonStyle
-                )
+            let alert: AKConfirmationAlert = .init(
+                title: title.map { translations.firstOutput(matching: $0) },
+                message: translations.firstOutput(matching: message),
+                cancelButtonTitle: translations.firstOutput(matching: cancelButtonTitle),
+                cancelButtonStyle: cancelButtonStyle,
+                confirmButtonTitle: translations.firstOutput(matching: confirmButtonTitle),
+                confirmButtonStyle: confirmButtonStyle
+            )
 
-                if let messageAttributes {
-                    alert.setMessageAttributes(messageAttributes)
-                }
-
-                if let titleAttributes {
-                    alert.setTitleAttributes(titleAttributes)
-                }
-
-                return .success(alert)
-
-            case let .failure(error):
-                return .failure(error)
+            if let messageAttributes {
+                alert.setMessageAttributes(messageAttributes)
             }
+
+            if let titleAttributes {
+                alert.setTitleAttributes(titleAttributes)
+            }
+
+            return alert
         }
 
         // MARK: - Translation Inputs
 
-        private func translationInputs(for optionKeys: [TranslationOptionKey]) -> [TranslationInput] {
+        private func translationInputs(
+            for optionKeys: [TranslationOptionKey]
+        ) -> [TranslationInput] {
             var inputs = [TranslationInput]()
             for key in optionKeys {
                 switch key {

@@ -23,7 +23,8 @@ public extension AlertKit {
     /// await alert.present()
     /// ```
     ///
-    /// When the error's ``Errorable/isReportable`` property is `true`
+    /// When the error's ``Errorable/isReportable`` property is `true`,
+    /// a ``ReportDelegate`` has been registered,
     /// and the logger delegate does not report errors automatically, the
     /// alert includes a "Send Error Report" button that files a report
     /// through the configured ``ReportDelegate``. Otherwise, the alert
@@ -116,13 +117,15 @@ public extension AlertKit {
                         present { continuation.resume(returning: ()) }
                     }
                 },
-                translate: { await translate(keys) },
+                translate: { try await translate(keys) },
                 presentTranslated: { await $0.present(translating: []) },
                 sender: self
             )
         }
 
-        private func present(completion: @escaping () -> Void) {
+        private func present(
+            completion: @escaping () -> Void
+        ) {
             let alertController = UIAlertController(
                 title: nil,
                 message: error.description.sanitized,
@@ -130,12 +133,13 @@ public extension AlertKit {
             )
 
             if error.isReportable,
-               AlertKit.config.loggerDelegate?.reportsErrorsAutomatically == false {
+               AlertKit.config.loggerDelegate?.reportsErrorsAutomatically == false,
+               let reportDelegate = AlertKit.config.reportDelegate {
                 let reportAction = UIAlertAction(
                     title: sendErrorReportButtonTitle.sanitized,
                     style: .default
                 ) { _ in
-                    AlertKit.config.reportDelegate?.fileReport(self.error)
+                    reportDelegate.fileReport(self.error)
                     completion()
                 }
 
@@ -152,38 +156,36 @@ public extension AlertKit {
             ) { _ in
                 completion()
             }
-            alertController.addAction(dismissAction)
 
+            alertController.addAction(dismissAction)
             AlertKit.config.presentationDelegate?.present(alertController)
         }
 
         // MARK: - Translate
 
-        private func translate(_ keys: [TranslationOptionKey]) async -> Result<ErrorAlert, Error> {
+        private func translate(
+            _ keys: [TranslationOptionKey]
+        ) async throws -> ErrorAlert {
             let uniqueKeys = keys.unique
-            guard !uniqueKeys.isEmpty else { return .success(self) }
+            guard !uniqueKeys.isEmpty else { return self }
 
-            let getTranslationsResult = await AlertKit.getTranslations(
+            let translations = try await AlertKit.getTranslations(
                 for: translationInputs(for: uniqueKeys)
             )
 
-            switch getTranslationsResult {
-            case let .success(translations):
-                error.description = translations.firstOutput(matching: error.description)
-                return .success(.init(
-                    error,
-                    dismissButtonTitle: translations.firstOutput(matching: dismissButtonTitle),
-                    sendErrorReportButtonTitle: translations.firstOutput(matching: sendErrorReportButtonTitle)
-                ))
-
-            case let .failure(error):
-                return .failure(error)
-            }
+            error.description = translations.firstOutput(matching: error.description)
+            return .init(
+                error,
+                dismissButtonTitle: translations.firstOutput(matching: dismissButtonTitle),
+                sendErrorReportButtonTitle: translations.firstOutput(matching: sendErrorReportButtonTitle)
+            )
         }
 
         // MARK: - Translation Inputs
 
-        private func translationInputs(for optionKeys: [TranslationOptionKey]) -> [TranslationInput] {
+        private func translationInputs(
+            for optionKeys: [TranslationOptionKey]
+        ) -> [TranslationInput] {
             var inputs = [TranslationInput]()
             for key in optionKeys {
                 switch key {
