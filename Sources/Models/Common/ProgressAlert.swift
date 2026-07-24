@@ -30,9 +30,13 @@ public extension AlertKit {
     /// )
     ///
     /// try await alert.present(
-    ///     observing: transferProgress.map(\.fractionCompleted)
+    ///     observing: startUpload().map(\.fractionCompleted)
     /// )
     /// ```
+    ///
+    /// The `observing:` argument is evaluated only after the alert is
+    /// presented, so the observed operation does not begin while
+    /// translation or presentation is still in progress.
     ///
     /// When you provide a cancel button title, tapping the button
     /// cancels the observed operation and
@@ -88,7 +92,7 @@ public extension AlertKit {
         private var _onCancel: (@MainActor () -> Void)?
 
         private weak var observedAlertControllerWindow: UIWindow?
-        private weak var presentedAlertController: UIAlertController?
+        private weak var presentedAlertController: ProgressAlertController?
         private weak var progressView: UIProgressView?
 
         // MARK: - Computed Properties
@@ -140,8 +144,11 @@ public extension AlertKit {
         /// presented with ``present(observing:translating:)`` dismiss
         /// themselves automatically when the observed operation
         /// completes.
+        ///
+        /// If the alert has not yet finished presenting, it is
+        /// dismissed automatically as soon as presentation completes.
         public func dismiss() {
-            presentedAlertController?.dismiss(animated: true)
+            presentedAlertController?.dismissWhenPresented()
             cleanUp()
         }
 
@@ -217,12 +224,24 @@ public extension AlertKit {
         /// values of the given asynchronous sequence, suspending
         /// until the observed operation completes.
         ///
-        /// Each element of `progress` is a completion fraction in the
-        /// range `0.0` through `1.0`; values outside the range are
-        /// clamped. When the sequence finishes, the alert dismisses
-        /// itself and this method returns. When the sequence throws,
-        /// the alert dismisses itself and this method rethrows the
-        /// error.
+        /// The `progress` expression is evaluated only after the
+        /// alert is presented, deferring the start of the underlying
+        /// operation until the alert is visible. Construct the
+        /// operation directly within the argument expression rather
+        /// than starting it beforehand:
+        ///
+        /// ```swift
+        /// try await alert.present(
+        ///     observing: startUpload().map(\.fractionCompleted)
+        /// )
+        /// ```
+        ///
+        /// Each element of the sequence is a completion fraction in
+        /// the range `0.0` through `1.0`; values outside the range
+        /// are clamped. When the sequence finishes, the alert
+        /// dismisses itself and this method returns. When the
+        /// sequence throws, the alert dismisses itself and this
+        /// method rethrows the error.
         ///
         /// If the alert includes a cancel button, tapping it cancels
         /// the task observing the sequence and this method throws a
@@ -233,7 +252,10 @@ public extension AlertKit {
         /// If the alert is dismissed out of band – for example, when
         /// the presenting view controller is torn down – the observed
         /// operation continues and this method resumes when it
-        /// completes.
+        /// completes. If the alert is never presented – for example,
+        /// when no presentation delegate is registered – the
+        /// operation never starts and this method throws a
+        /// `CancellationError`.
         ///
         /// This method translates the alert's content before
         /// presentation according to the specified keys. Each key
@@ -242,20 +264,22 @@ public extension AlertKit {
         ///
         /// - Parameters:
         ///   - progress: An asynchronous sequence of completion
-        ///     fractions that drives the alert's progress bar.
+        ///     fractions that drives the alert's progress bar. The
+        ///     expression is evaluated after the alert is presented.
         ///   - keys: The parts of the alert to translate. The default
         ///     includes all translatable content.
         ///
-        /// - Throws: The error produced by `progress`, or
-        ///   `CancellationError` if the user cancels.
-        public func present(
-            observing progress: some AsyncSequence<Double, some Swift.Error>,
+        /// - Throws: The error produced by the sequence, or
+        ///   `CancellationError` if the user cancels or the alert is
+        ///   never presented.
+        public func present<Progress: AsyncSequence>(
+            observing progress: @autoclosure @escaping () -> Progress,
             translating keys: [TranslationOptionKey] = [
                 .cancelButtonTitle,
                 .message,
                 .title,
             ]
-        ) async throws {
+        ) async throws where Progress.Element == Double {
             try await present(
                 observing: progress,
                 content: resolvedContent(translating: keys)
@@ -291,45 +315,50 @@ public extension AlertKit {
 
         /// `Swift.Error` requires explicit qualification here, as
         /// ``AlertKit/Error`` shadows it within this namespace.
-        private func present(
-            observing progress: some AsyncSequence<Double, some Swift.Error>,
+        private func present<Progress: AsyncSequence>(
+            observing progress: @escaping () -> Progress,
             content: PresentationContent
-        ) async -> Result<Void, any Swift.Error> {
+        ) async -> Result<Void, any Swift.Error> where Progress.Element == Double {
             await withCheckedContinuation { continuation in
                 let continuation = ContinuationGuard(
                     continuation,
                     fallbackValue: .failure(CancellationError())
                 )
 
-                present(with: content) {
+                let alertController = present(with: content) {
                     continuation.resume(returning: .failure(CancellationError()))
                 }
 
-                observationTask = Task { @MainActor [weak self] in
-                    do {
-                        for try await fractionCompleted in progress {
+                alertController.onDidAppear { [weak self] in
+                    guard let self else { return }
+
+                    observationTask = Task { @MainActor [weak self] in
+                        do {
+                            for try await fractionCompleted in progress() {
+                                try Task.checkCancellation()
+                                self?.updateProgress(fractionCompleted)
+                            }
+
                             try Task.checkCancellation()
-                            self?.updateProgress(fractionCompleted)
+
+                            self?.updateProgress(1)
+                            self?.dismiss()
+                            continuation.resume(returning: .success(()))
+                        } catch {
+                            self?.dismiss()
+                            continuation.resume(returning: .failure(error))
                         }
-
-                        try Task.checkCancellation()
-
-                        self?.updateProgress(1)
-                        self?.dismiss()
-                        continuation.resume(returning: .success(()))
-                    } catch {
-                        self?.dismiss()
-                        continuation.resume(returning: .failure(error))
                     }
                 }
             }
         }
 
+        @discardableResult
         private func present(
             with content: PresentationContent,
             onCancelTap: (@MainActor () -> Void)? = nil
-        ) {
-            let alertController = UIAlertController(
+        ) -> ProgressAlertController {
+            let alertController = ProgressAlertController(
                 title: content.title?.sanitized,
                 message: content.message.sanitized,
                 preferredStyle: .alert
@@ -358,9 +387,16 @@ public extension AlertKit {
                 titleAttributes: titleAttributes
             )
 
+            alertController.onDidAppear { [weak self, weak alertController] in
+                guard let self,
+                      let alertController else { return }
+
+                observeAlertControllerWindow(of: alertController)
+            }
+
             presentedAlertController = alertController
             AlertKit.config.presentationDelegate?.present(alertController)
-            observeAlertControllerWindow(of: alertController)
+            return alertController
         }
 
         // MARK: - Translate
@@ -461,20 +497,17 @@ public extension AlertKit {
             cleanUp()
         }
 
-        private func observeAlertControllerWindow(of alertController: UIAlertController) {
-            DispatchQueue.main.async { [weak alertController, weak self] in
-                guard let self,
-                      let window = alertController?.view.window else { return }
+        private func observeAlertControllerWindow(of alertController: ProgressAlertController) {
+            guard let window = alertController.view.window else { return }
 
-                observedAlertControllerWindow = window
-                windowDidBecomeHiddenObserver = NotificationCenter.default.addObserver(
-                    forName: UIWindow.didBecomeHiddenNotification,
-                    object: window,
-                    queue: .main
-                ) { [weak self] _ in
-                    Task { @MainActor [weak self] in
-                        self?.cleanUp()
-                    }
+            observedAlertControllerWindow = window
+            windowDidBecomeHiddenObserver = NotificationCenter.default.addObserver(
+                forName: UIWindow.didBecomeHiddenNotification,
+                object: window,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.cleanUp()
                 }
             }
         }
