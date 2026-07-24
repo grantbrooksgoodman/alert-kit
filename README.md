@@ -15,6 +15,7 @@ A translation-aware alert presentation framework built on `UIAlertController`.
   - [Action Sheet](#action-sheet)
   - [Confirmation Alert](#confirmation-alert)
   - [Error Alert](#error-alert)
+  - [Progress Alert](#progress-alert)
   - [Text Input Alert](#text-input-alert)
 - [Actions](#actions)
 - [Translation](#translation)
@@ -32,7 +33,7 @@ A translation-aware alert presentation framework built on `UIAlertController`.
 
 AlertKit provides a structured system for presenting alerts in your app. It wraps `UIAlertController` with a set of types designed for specific interaction patterns and adds automatic translation support through a configurable delegate system.
 
-The framework defines five alert types:
+The framework defines six alert types:
 
 | Type | Purpose |
 | --- | --- |
@@ -40,6 +41,7 @@ The framework defines five alert types:
 | [`ActionSheet`](Sources/Models/Common/ActionSheet.swift) | A list of actions presented as a popover (iOS 26+) or from the bottom of the screen (iOS ≤ 18) |
 | [`ConfirmationAlert`](Sources/Models/Common/ConfirmationAlert.swift) | A two-button dialog that resolves to a Boolean result |
 | [`ErrorAlert`](Sources/Models/Common/ErrorAlert.swift) | An alert that presents an error with optional reporting |
+| [`ProgressAlert`](Sources/Models/Common/ProgressAlert.swift) | An alert with a progress bar that tracks a long-running operation |
 | [`TextInputAlert`](Sources/Models/Common/TextInputAlert.swift) | An alert with a text field that returns the entered string |
 
 All alert types support Swift concurrency with `async`/`await` and translate their content automatically before presentation. You control which parts are translated through each type's [`TranslationOptionKey`](Sources/Models/Core/Public/TranslationOptionKeys.swift), and can skip translation entirely by passing an empty array.
@@ -176,6 +178,48 @@ struct MyError: AlertKit.Errorable {
 ```
 
 The `description` property is declared with a setter because AlertKit may replace it with a translated value before presentation.
+
+### Progress Alert
+
+[`ProgressAlert`](Sources/Models/Common/ProgressAlert.swift) presents an alert with a progress bar that tracks a long-running operation, such as a file upload or download.
+
+The `present(observing:)` method accepts any `AsyncSequence` whose elements are `Double` completion fractions in the range `0.0` through `1.0`. The alert advances its progress bar as values arrive, dismisses itself when the sequence finishes, and rethrows any error the sequence produces. For example, to track a storage upload that reports transfer progress:
+
+```swift
+let progressAlert = AKProgressAlert(
+    title: "Uploading Photo",
+    message: "Your photo is being uploaded.",
+    cancelButtonTitle: "Cancel"
+)
+
+try await progressAlert.present(
+    observing: storage.uploadWithProgress(
+        imageData,
+        metadata: .init("images/photo.png")
+    ).map(\.fractionCompleted)
+)
+```
+
+When you provide a `cancelButtonTitle`, the alert includes a cancel button. Tapping it cancels the observed operation and `present(observing:)` throws a `CancellationError`. Omit the parameter to present an alert that can be dismissed only programmatically. To perform additional work on cancellation, register a callback with `onCancel(_:)` before presenting.
+
+You can also drive the progress bar manually. Call `present()` to display the alert, `updateProgress(_:)` to advance the bar, and `dismiss()` when your work completes:
+
+```swift
+let progressAlert = AKProgressAlert(message: "Processing…")
+
+await progressAlert.present()
+
+for step in 1...steps {
+    await process(step)
+    progressAlert.updateProgress(Double(step) / Double(steps))
+}
+
+progressAlert.dismiss()
+```
+
+Unlike other alert types, `present()` returns once the alert is presented rather than suspending until dismissal.
+
+> **Note:** `UIAlertController` provides no supported API for embedding accessory views. `ProgressAlert` reserves space beneath the alert's message and positions a `UIProgressView` within it using layout metrics tuned to the current alert design. Verify the layout when adopting a new major OS release.
 
 ### Text Input Alert
 
@@ -341,7 +385,7 @@ let config = AlertKit.AttributedStringConfig(
 )
 ```
 
-Attributed string customization is available on [`Alert`](Sources/Models/Common/Alert.swift), [`ActionSheet`](Sources/Models/Common/ActionSheet.swift), [`ConfirmationAlert`](Sources/Models/Common/ConfirmationAlert.swift), and [`TextInputAlert`](Sources/Models/Common/TextInputAlert.swift).
+Attributed string customization is available on [`Alert`](Sources/Models/Common/Alert.swift), [`ActionSheet`](Sources/Models/Common/ActionSheet.swift), [`ConfirmationAlert`](Sources/Models/Common/ConfirmationAlert.swift), [`ProgressAlert`](Sources/Models/Common/ProgressAlert.swift), and [`TextInputAlert`](Sources/Models/Common/TextInputAlert.swift).
 
 ### Text Field Configuration
 
@@ -405,6 +449,7 @@ AlertKit provides convenience aliases for its public types:
 | `AKAlert` | `AlertKit.Alert` |
 | `AKConfirmationAlert` | `AlertKit.ConfirmationAlert` |
 | `AKErrorAlert` | `AlertKit.ErrorAlert` |
+| `AKProgressAlert` | `AlertKit.ProgressAlert` |
 | `AKTextInputAlert` | `AlertKit.TextInputAlert` |
 
 ---
