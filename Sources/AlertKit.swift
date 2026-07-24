@@ -25,6 +25,9 @@ public typealias AKConfirmationAlert = AlertKit.ConfirmationAlert
 /// A convenience alias for ``AlertKit/ErrorAlert``.
 public typealias AKErrorAlert = AlertKit.ErrorAlert
 
+/// A convenience alias for ``AlertKit/ProgressAlert``.
+public typealias AKProgressAlert = AlertKit.ProgressAlert
+
 /// A convenience alias for ``AlertKit/TextInputAlert``.
 public typealias AKTextInputAlert = AlertKit.TextInputAlert
 
@@ -43,8 +46,9 @@ public typealias AKTextInputAlert = AlertKit.TextInputAlert
 /// ```
 ///
 /// All alert types – ``Alert``, ``ActionSheet``,
-/// ``ConfirmationAlert``, ``TextInputAlert``, and ``ErrorAlert`` –
-/// are defined as nested types within this namespace.
+/// ``ConfirmationAlert``, ``ProgressAlert``, ``TextInputAlert``, and
+/// ``ErrorAlert`` – are defined as nested types within this
+/// namespace.
 @MainActor
 public enum AlertKit {
     /// The shared configuration for AlertKit.

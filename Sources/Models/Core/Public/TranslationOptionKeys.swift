@@ -103,6 +103,28 @@ public extension AlertKit.ErrorAlert {
     }
 }
 
+// MARK: - ProgressAlert
+
+public extension AlertKit.ProgressAlert {
+    /// A value that identifies a translatable part of a
+    /// ``ProgressAlert``.
+    ///
+    /// Pass one or more translation option keys to
+    /// ``ProgressAlert/present(observing:translating:)`` or
+    /// ``ProgressAlert/present(translating:)`` to control which
+    /// parts of the alert are translated before presentation.
+    enum TranslationOptionKey: Hashable, Sendable {
+        /// The cancel button's title.
+        case cancelButtonTitle
+
+        /// The alert's message.
+        case message
+
+        /// The alert's title.
+        case title
+    }
+}
+
 // MARK: - TextInputAlert
 
 public extension AlertKit.TextInputAlert {
