@@ -15,20 +15,26 @@ extension UIAlertController {
     private enum ProgressViewMetrics {
         /// The distance between the progress view and the bottom edge
         /// of the alert when no cancel action is present.
-        static let bottomInset: CGFloat = 34
+        @MainActor
+        static let bottomInset: CGFloat = UIApplication.isV26Compatible ? 34 : 26
 
         /// The distance between the progress view and the bottom edge
         /// of the alert when a cancel action is present, accounting
         /// for the height of the action row.
-        static let bottomInsetWithCancelAction: CGFloat = 78
+        @MainActor
+        static let bottomInsetWithCancelAction: CGFloat = UIApplication.isV26Compatible ? 78 : 62
 
         /// The distance between the progress view and the leading and
         /// trailing edges of the alert.
-        static let horizontalInset: CGFloat = 16
+        static let horizontalInset: CGFloat = 30
 
         /// The whitespace appended to the alert's message to reserve
         /// vertical space for the progress view.
         static let messagePadding = "\n\n"
+
+        /// The whitespace appended to the alert's message when a cancel
+        /// action is present to reserve vertical space for the progress view.
+        static let messagePaddingWithCancelAction = "\n"
     }
 
     // MARK: - Methods
@@ -43,7 +49,7 @@ extension UIAlertController {
         // major OS releases.
         message = [
             message,
-            ProgressViewMetrics.messagePadding,
+            hasCancelAction ? ProgressViewMetrics.messagePaddingWithCancelAction : ProgressViewMetrics.messagePadding,
         ].compactMap(\.self).joined()
 
         let progressView = UIProgressView(progressViewStyle: .default)

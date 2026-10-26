@@ -13,7 +13,9 @@ import UIKit
 extension AlertKit.Alert {
     // MARK: - Properties
 
-    private static var presentedAlertControllers: [UIAlertController] { AlertKit.config.presentationDelegate?.presentedAlertControllers ?? [] }
+    private static var presentedAlertControllers: [UIAlertController] {
+        AlertKit.config.presentationDelegate?.presentedAlertControllers ?? []
+    }
 
     // MARK: - Methods
 

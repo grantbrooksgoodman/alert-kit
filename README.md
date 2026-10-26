@@ -200,6 +200,8 @@ try await progressAlert.present(
 )
 ```
 
+The `observing:` argument is evaluated only after the alert finishes presenting, so the observed operation does not begin while translation or presentation is still in progress. Construct the operation directly within the argument expression – as in the example above – rather than starting it beforehand.
+
 When you provide a `cancelButtonTitle`, the alert includes a cancel button. Tapping it cancels the observed operation and `present(observing:)` throws a `CancellationError`. Omit the parameter to present an alert that can be dismissed only programmatically. To perform additional work on cancellation, register a callback with `onCancel(_:)` before presenting.
 
 You can also drive the progress bar manually. Call `present()` to display the alert, `updateProgress(_:)` to advance the bar, and `dismiss()` when your work completes:
@@ -217,7 +219,7 @@ for step in 1...steps {
 progressAlert.dismiss()
 ```
 
-Unlike other alert types, `present()` returns once the alert is presented rather than suspending until dismissal.
+Unlike other alert types, `present()` returns once the alert is presented rather than suspending until dismissal. If `dismiss()` is called before the alert finishes presenting, the alert is dismissed automatically as soon as presentation completes.
 
 > **Note:** `UIAlertController` provides no supported API for embedding accessory views. `ProgressAlert` reserves space beneath the alert's message and positions a `UIProgressView` within it using layout metrics tuned to the current alert design. Verify the layout when adopting a new major OS release.
 
