@@ -68,24 +68,16 @@ public extension AlertKit {
             self.effect = effect
         }
 
-        // MARK: - Perform
-
-        func perform() {
-            effect()
-        }
-
         // MARK: - Equatable Conformance
 
-        public static func == (left: Action, right: Action) -> Bool {
-            let sameID = left.id == right.id
-            let sameIsEnabled = left.isEnabled == right.isEnabled
-            let sameStyle = left.style == right.style
-            let sameTitle = left.title == right.title
-
-            guard sameID,
-                  sameIsEnabled,
-                  sameStyle,
-                  sameTitle else { return false }
+        public static func == (
+            left: Action,
+            right: Action
+        ) -> Bool {
+            guard left.id == right.id,
+                  left.isEnabled == right.isEnabled,
+                  left.style == right.style,
+                  left.title == right.title else { return false }
 
             return true
         }
@@ -97,6 +89,12 @@ public extension AlertKit {
             hasher.combine(isEnabled)
             hasher.combine(style)
             hasher.combine(title)
+        }
+
+        // - MARK: Perform
+
+        func perform() {
+            effect()
         }
     }
 }

@@ -110,7 +110,11 @@ public extension AlertKit {
             cancelButtonTitle: String = Constants.defaultCancelButtonTitle,
             sourceItem: SourceItem? = nil
         ) {
-            assert(!actions.isEmpty, "Modal alerts are not supported")
+            assert(
+                !actions.isEmpty,
+                "Modal alerts are not supported"
+            )
+
             self.title = title
             self.message = message
             self.actions = actions
@@ -232,13 +236,12 @@ public extension AlertKit {
             )
 
             if !actions.contains(where: { $0.style == .cancel }) {
-                let cancelAction = UIAlertAction(
+                alertController.addAction(UIAlertAction(
                     title: cancelButtonTitle.sanitized,
                     style: .cancel
                 ) { _ in
                     completion()
-                }
-                alertController.addAction(cancelAction)
+                })
             }
 
             alertController.applyAttributedStrings(
@@ -247,7 +250,10 @@ public extension AlertKit {
             )
 
             alertController.popoverPresentationController?.sourceItem = sourceItemView
-            AlertKit.config.presentationDelegate?.present(alertController)
+            AlertKit
+                .config
+                .presentationDelegate?
+                .present(alertController)
         }
 
         // MARK: - Translate
@@ -256,7 +262,9 @@ public extension AlertKit {
             _ keys: [TranslationOptionKey]
         ) async throws -> ActionSheet {
             let uniqueKeys = keys.unique
-            guard !uniqueKeys.isEmpty else { return self }
+            guard !uniqueKeys.isEmpty else {
+                return self
+            }
 
             let translations = try await AlertKit.getTranslations(
                 for: translationInputs(for: uniqueKeys)
@@ -294,6 +302,7 @@ public extension AlertKit {
                         inputs.append(
                             contentsOf: self.actions.map { .init($0.title) }
                         )
+
                         continue
                     }
 

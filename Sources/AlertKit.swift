@@ -145,14 +145,18 @@ public extension AlertKit {
         /// Registers the given inspection delegate.
         ///
         /// - Parameter inspectionDelegate: The delegate to register.
-        public func registerInspectionDelegate(_ inspectionDelegate: InspectionDelegate) {
+        public func registerInspectionDelegate(
+            _ inspectionDelegate: InspectionDelegate
+        ) {
             self.inspectionDelegate = inspectionDelegate
         }
 
         /// Registers the given logger delegate.
         ///
         /// - Parameter loggerDelegate: The delegate to register.
-        public func registerLoggerDelegate(_ loggerDelegate: LoggerDelegate) {
+        public func registerLoggerDelegate(
+            _ loggerDelegate: LoggerDelegate
+        ) {
             self.loggerDelegate = loggerDelegate
         }
 
@@ -160,14 +164,18 @@ public extension AlertKit {
         ///
         /// - Parameter presentationDelegate: The delegate to
         ///   register.
-        public func registerPresentationDelegate(_ presentationDelegate: PresentationDelegate) {
+        public func registerPresentationDelegate(
+            _ presentationDelegate: PresentationDelegate
+        ) {
             self.presentationDelegate = presentationDelegate
         }
 
         /// Registers the given report delegate.
         ///
         /// - Parameter reportDelegate: The delegate to register.
-        public func registerReportDelegate(_ reportDelegate: ReportDelegate) {
+        public func registerReportDelegate(
+            _ reportDelegate: ReportDelegate
+        ) {
             self.reportDelegate = reportDelegate
         }
 
@@ -175,7 +183,9 @@ public extension AlertKit {
         ///
         /// - Parameter translationDelegate: The delegate to
         ///   register.
-        public func registerTranslationDelegate(_ translationDelegate: TranslationDelegate) {
+        public func registerTranslationDelegate(
+            _ translationDelegate: TranslationDelegate
+        ) {
             self.translationDelegate = translationDelegate
         }
 
@@ -185,7 +195,9 @@ public extension AlertKit {
         ///
         /// - Parameter sourceLanguageCode: The ISO 639-1 language
         ///   code to use as the source language.
-        public func overrideSourceLanguageCode(_ sourceLanguageCode: String) {
+        public func overrideSourceLanguageCode(
+            _ sourceLanguageCode: String
+        ) {
             self.sourceLanguageCode = sourceLanguageCode
         }
 
@@ -194,7 +206,9 @@ public extension AlertKit {
         ///
         /// - Parameter targetLanguageCode: The ISO 639-1 language
         ///   code to use as the target language.
-        public func overrideTargetLanguageCode(_ targetLanguageCode: String) {
+        public func overrideTargetLanguageCode(
+            _ targetLanguageCode: String
+        ) {
             self.targetLanguageCode = targetLanguageCode
         }
 
@@ -202,7 +216,9 @@ public extension AlertKit {
         ///
         /// - Parameter translationHUDConfig: The HUD configuration
         ///   to use.
-        public func overrideTranslationHUDConfig(_ translationHUDConfig: HUDConfig) {
+        public func overrideTranslationHUDConfig(
+            _ translationHUDConfig: HUDConfig
+        ) {
             self.translationHUDConfig = translationHUDConfig
         }
 
@@ -210,7 +226,9 @@ public extension AlertKit {
         ///
         /// - Parameter translationTimeoutConfig: The timeout
         ///   configuration to use.
-        public func overrideTranslationTimeoutConfig(_ translationTimeoutConfig: TranslationTimeoutConfig) {
+        public func overrideTranslationTimeoutConfig(
+            _ translationTimeoutConfig: TranslationTimeoutConfig
+        ) {
             self.translationTimeoutConfig = translationTimeoutConfig
         }
     }

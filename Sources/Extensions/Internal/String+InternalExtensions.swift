@@ -1,5 +1,5 @@
 //
-//  String+Extensions.swift
+//  String+InternalExtensions.swift
 //
 //  Created by Grant Brooks Goodman.
 //  Copyright © NEOTechnica Corporation. All rights reserved.
@@ -19,16 +19,34 @@ extension String {
     /// tokenization. They must be stripped from all user-facing text
     /// before display.
     var sanitized: String {
-        replacingOccurrences(of: "⌘", with: "")
-            .replacingOccurrences(of: "⁂", with: "")
-            .replacingOccurrences(of: "※", with: "")
+        replacingOccurrences(
+            of: "⌘",
+            with: ""
+        )
+        .replacingOccurrences(
+            of: "⁂",
+            with: ""
+        )
+        .replacingOccurrences(
+            of: "※",
+            with: ""
+        )
     }
 
     // MARK: - Methods
 
-    func attributed(_ config: AlertKit.AttributedStringConfig) -> NSAttributedString {
-        let attributedString = NSMutableAttributedString(string: self, attributes: config.primaryAttributes)
-        func applyAttributes(_ attributes: [NSAttributedString.Key: Any], stringRanges: [String]) {
+    func attributed(
+        _ config: AlertKit.AttributedStringConfig
+    ) -> NSAttributedString {
+        let attributedString = NSMutableAttributedString(
+            string: self,
+            attributes: config.primaryAttributes
+        )
+
+        func applyAttributes(
+            _ attributes: [NSAttributedString.Key: Any],
+            stringRanges: [String]
+        ) {
             stringRanges.filter { self.contains($0) }.forEach { string in
                 attributedString.addAttributes(
                     attributes,
@@ -37,7 +55,13 @@ extension String {
             }
         }
 
-        config.secondaryAttributes?.forEach { applyAttributes($0.attributes, stringRanges: $0.stringRanges) }
+        config.secondaryAttributes?.forEach {
+            applyAttributes(
+                $0.attributes,
+                stringRanges: $0.stringRanges
+            )
+        }
+
         return attributedString
     }
 }

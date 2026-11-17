@@ -1,5 +1,5 @@
 //
-//  LoggerDelegate.swift
+//  LoggerDelegateProtocol.swift
 //
 //  Created by Grant Brooks Goodman.
 //  Copyright © NEOTechnica Corporation. All rights reserved.
@@ -22,9 +22,10 @@ public extension AlertKit {
     ///
     /// The ``reportsErrorsAutomatically`` property determines how
     /// ``ErrorAlert`` handles reportable errors. When this value is
-    /// `false`, the alert includes a "Send Error Report" button.
-    /// When `true`, the alert omits the button and instead displays
-    /// the error identifier in the message body.
+    /// `false` and a ``ReportDelegate`` is registered, the alert
+    /// includes a "Send Error Report" button. When `true`, the alert
+    /// omits the button and instead displays the error identifier in
+    /// the message body.
     @MainActor
     protocol LoggerDelegate {
         // MARK: - Properties

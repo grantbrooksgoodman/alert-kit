@@ -8,8 +8,6 @@
 /* Native */
 import Foundation
 
-// MARK: - ActionSheet
-
 public extension AlertKit.ActionSheet {
     /// A value that identifies a translatable part of an
     /// ``ActionSheet``.
@@ -35,8 +33,6 @@ public extension AlertKit.ActionSheet {
     }
 }
 
-// MARK: - Alert
-
 public extension AlertKit.Alert {
     /// A value that identifies a translatable part of an ``Alert``.
     ///
@@ -57,8 +53,6 @@ public extension AlertKit.Alert {
         case title
     }
 }
-
-// MARK: - ConfirmationAlert
 
 public extension AlertKit.ConfirmationAlert {
     /// A value that identifies a translatable part of a
@@ -82,8 +76,6 @@ public extension AlertKit.ConfirmationAlert {
     }
 }
 
-// MARK: - ErrorAlert
-
 public extension AlertKit.ErrorAlert {
     /// A value that identifies a translatable part of an
     /// ``ErrorAlert``.
@@ -102,8 +94,6 @@ public extension AlertKit.ErrorAlert {
         case sendErrorReportButtonTitle
     }
 }
-
-// MARK: - ProgressAlert
 
 public extension AlertKit.ProgressAlert {
     /// A value that identifies a translatable part of a
@@ -124,8 +114,6 @@ public extension AlertKit.ProgressAlert {
         case title
     }
 }
-
-// MARK: - TextInputAlert
 
 public extension AlertKit.TextInputAlert {
     /// A value that identifies a translatable part of a

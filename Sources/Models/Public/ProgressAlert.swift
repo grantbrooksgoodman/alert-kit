@@ -325,11 +325,11 @@ public extension AlertKit {
                     fallbackValue: .failure(CancellationError())
                 )
 
-                let alertController = present(with: content) {
-                    continuation.resume(returning: .failure(CancellationError()))
+                present(with: content) {
+                    continuation
+                        .resume(returning: .failure(CancellationError()))
                 }
-
-                alertController.onDidAppear { [weak self] in
+                .onDidAppear { [weak self] in
                     guard let self else { return }
 
                     observationTask = Task { @MainActor [weak self] in
@@ -365,7 +365,7 @@ public extension AlertKit {
             )
 
             if let cancelButtonTitle = content.cancelButtonTitle {
-                let cancelAction = UIAlertAction(
+                alertController.addAction(UIAlertAction(
                     title: cancelButtonTitle.sanitized,
                     style: cancelButtonStyle.uiAlertStyle
                 ) { [weak self] _ in
@@ -373,9 +373,7 @@ public extension AlertKit {
                         self?.handleCancelActionTap()
                         onCancelTap?()
                     }
-                }
-
-                alertController.addAction(cancelAction)
+                })
             }
 
             progressView = alertController.addProgressView(
@@ -395,7 +393,11 @@ public extension AlertKit {
             }
 
             presentedAlertController = alertController
-            AlertKit.config.presentationDelegate?.present(alertController)
+            AlertKit
+                .config
+                .presentationDelegate?
+                .present(alertController)
+
             return alertController
         }
 
@@ -417,7 +419,9 @@ public extension AlertKit {
             _ keys: [TranslationOptionKey]
         ) async throws -> PresentationContent {
             let uniqueKeys = keys.unique
-            guard !uniqueKeys.isEmpty else { return presentationContent }
+            guard !uniqueKeys.isEmpty else {
+                return presentationContent
+            }
 
             let translations = try await AlertKit.getTranslations(
                 for: translationInputs(for: uniqueKeys)
@@ -465,50 +469,56 @@ public extension AlertKit {
         ///   operation that has completed, in the range `0.0` through
         ///   `1.0`. Values outside the range are clamped.
         public func updateProgress(_ fractionCompleted: Double) {
-            let fractionCompleted = min(
-                max(fractionCompleted, 0),
-                1
-            )
-
             progressView?.setProgress(
-                Float(fractionCompleted),
+                Float(min(
+                    max(
+                        fractionCompleted,
+                        0
+                    ),
+                    1
+                )),
                 animated: true
             )
         }
+    }
+}
 
-        // MARK: - Auxiliary
+private extension AlertKit.ProgressAlert {
+    func cleanUp() {
+        if let windowDidBecomeHiddenObserver {
+            NotificationCenter
+                .default
+                .removeObserver(windowDidBecomeHiddenObserver)
 
-        private func cleanUp() {
-            if let windowDidBecomeHiddenObserver {
-                NotificationCenter.default.removeObserver(windowDidBecomeHiddenObserver)
-                self.windowDidBecomeHiddenObserver = nil
-            }
-
-            observedAlertControllerWindow = nil
-            presentedAlertController = nil
-            progressView = nil
-            _onCancel = nil
+            self.windowDidBecomeHiddenObserver = nil
         }
 
-        private func handleCancelActionTap() {
-            observationTask?.cancel()
-            observationTask = nil
-            _onCancel?()
-            cleanUp()
-        }
+        observedAlertControllerWindow = nil
+        presentedAlertController = nil
+        progressView = nil
+        _onCancel = nil
+    }
 
-        private func observeAlertControllerWindow(of alertController: ProgressAlertController) {
-            guard let window = alertController.view.window else { return }
+    func handleCancelActionTap() {
+        observationTask?.cancel()
+        observationTask = nil
+        _onCancel?()
+        cleanUp()
+    }
 
-            observedAlertControllerWindow = window
-            windowDidBecomeHiddenObserver = NotificationCenter.default.addObserver(
-                forName: UIWindow.didBecomeHiddenNotification,
-                object: window,
-                queue: .main
-            ) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.cleanUp()
-                }
+    func observeAlertControllerWindow(
+        of alertController: ProgressAlertController
+    ) {
+        guard let window = alertController.view.window else { return }
+
+        observedAlertControllerWindow = window
+        windowDidBecomeHiddenObserver = NotificationCenter.default.addObserver(
+            forName: UIWindow.didBecomeHiddenNotification,
+            object: window,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.cleanUp()
             }
         }
     }

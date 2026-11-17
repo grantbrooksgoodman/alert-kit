@@ -159,12 +159,18 @@ public extension AlertKit {
 
         private func removeTextFieldChangeObserver() {
             if let windowDidBecomeHiddenObserver {
-                NotificationCenter.default.removeObserver(windowDidBecomeHiddenObserver)
+                NotificationCenter
+                    .default
+                    .removeObserver(windowDidBecomeHiddenObserver)
+
                 self.windowDidBecomeHiddenObserver = nil
             }
 
             if let textDidChangeObserver {
-                NotificationCenter.default.removeObserver(textDidChangeObserver)
+                NotificationCenter
+                    .default
+                    .removeObserver(textDidChangeObserver)
+
                 self.textDidChangeObserver = nil
             }
 
@@ -291,7 +297,11 @@ public extension AlertKit {
                 titleAttributes: titleAttributes
             )
 
-            AlertKit.config.presentationDelegate?.present(alertController)
+            AlertKit
+                .config
+                .presentationDelegate?
+                .present(alertController)
+
             guard let onTextFieldChange = _onTextFieldChange else { return }
 
             observedTextField = alertController.textFields?.first
@@ -328,7 +338,9 @@ public extension AlertKit {
             _ keys: [TranslationOptionKey]
         ) async throws -> TextInputAlert {
             let uniqueKeys = keys.unique
-            guard !uniqueKeys.isEmpty else { return self }
+            guard !uniqueKeys.isEmpty else {
+                return self
+            }
 
             let translations = try await AlertKit.getTranslations(
                 for: translationInputs(for: uniqueKeys)
@@ -336,11 +348,13 @@ public extension AlertKit {
 
             var attributes = attributes
             if let placeholderText = attributes.placeholderText {
-                attributes = attributes.replacingPlaceholderText(translations.firstOutput(matching: placeholderText))
+                attributes = attributes
+                    .replacingPlaceholderText(translations.firstOutput(matching: placeholderText))
             }
 
             if let sampleText = attributes.sampleText {
-                attributes = attributes.replacingSampleText(translations.firstOutput(matching: sampleText))
+                attributes = attributes
+                    .replacingSampleText(translations.firstOutput(matching: sampleText))
             }
 
             let alert: AKTextInputAlert = .init(

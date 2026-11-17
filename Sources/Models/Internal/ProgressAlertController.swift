@@ -58,7 +58,10 @@ final class ProgressAlertController: UIAlertController {
     /// presenting for the first time, or immediately if it already
     /// has. Callbacks are invoked in registration order.
     func onDidAppear(_ perform: @escaping @MainActor () -> Void) {
-        guard !hasAppeared else { return perform() }
+        guard !hasAppeared else {
+            return perform()
+        }
+
         onDidAppearCallbacks.append(perform)
     }
 }

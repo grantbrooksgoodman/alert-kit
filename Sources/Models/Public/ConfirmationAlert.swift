@@ -1,5 +1,5 @@
 //
-//  Alert.swift
+//  ConfirmationAlert.swift
 //
 //  Created by Grant Brooks Goodman.
 //  Copyright © NEOTechnica Corporation. All rights reserved.
@@ -13,57 +13,51 @@ import UIKit
 import Translator
 
 public extension AlertKit {
-    /// An alert that displays a title, message, and a set of actions.
+    /// An alert that asks the user to confirm or cancel an action.
     ///
-    /// Use `Alert` to present a standard alert dialog to the user using
-    /// your app. Create an alert with a title, an optional message, and
-    /// one or more actions, then call ``present(translating:)`` to display
-    /// it:
+    /// Use `ConfirmationAlert` to present a simple two-button dialog that
+    /// resolves to a Boolean result. The confirm button indicates the
+    /// affirmative choice, and the cancel button dismisses the alert
+    /// without action:
     ///
     /// ```swift
-    /// let alert = AKAlert(
+    /// let confirmed = await AKConfirmationAlert(
     ///     title: "Remove Item",
-    ///     message: "This action cannot be undone.",
-    ///     actions: [
-    ///         .init("Remove", style: .destructive) {
-    ///             removeItem()
-    ///         },
-    ///         .init("Cancel", style: .cancel) {},
-    ///     ]
+    ///     message: "This action cannot be undone."
+    /// ).present()
+    ///
+    /// if confirmed {
+    ///     removeItem()
+    /// }
+    /// ```
+    ///
+    /// You can customize the button titles and styles:
+    ///
+    /// ```swift
+    /// let alert = AKConfirmationAlert(
+    ///     message: "Discard your changes?",
+    ///     cancelButtonTitle: "Keep Editing",
+    ///     confirmButtonTitle: "Discard",
+    ///     confirmButtonStyle: .destructive
     /// )
     ///
-    /// await alert.present()
+    /// if await alert.present() {
+    ///     discardChanges()
+    /// }
     /// ```
     ///
-    /// When you omit the `actions` parameter, the alert displays a single
-    /// "OK" button with the ``ActionStyle/cancel`` style.
-    ///
-    /// ## Translation
-    ///
-    /// By default, ``present(translating:)`` translates the alert's title,
-    /// message, and action titles into the configured target language
-    /// before presentation. To present without translation, pass an empty
-    /// array:
-    ///
-    /// ```swift
-    /// await alert.present(translating: [])
-    /// ```
-    ///
-    /// To translate only specific parts of the alert, provide the
-    /// corresponding ``TranslationOptionKey`` values:
-    ///
-    /// ```swift
-    /// await alert.present(translating: [.title, .message])
-    /// ```
-    ///
-    /// - Important: The `actions` array must contain at least one action.
-    ///   Passing an empty array triggers a runtime assertion failure.
+    /// By default, ``present(translating:)`` translates all content into
+    /// the configured target language. Pass an empty array to skip
+    /// translation.
     @MainActor
-    final class Alert {
+    final class ConfirmationAlert {
         // MARK: - Properties
 
-        private let actions: [Action]
-        private let message: String?
+        private let cancelButtonStyle: ActionStyle
+        private let cancelButtonTitle: String
+        private let confirmButtonStyle: ActionStyle
+        private let confirmButtonTitle: String
+        private let message: String
         private let title: String?
 
         private var messageAttributes: AttributedStringConfig?
@@ -71,23 +65,34 @@ public extension AlertKit {
 
         // MARK: - Init
 
-        /// Creates an alert with the specified title, message, and actions.
+        /// Creates a confirmation alert with the specified title, message,
+        /// and button configuration.
         ///
         /// - Parameters:
         ///   - title: The title of the alert. The default is `nil`.
         ///   - message: The descriptive message of the alert.
-        ///   - actions: The actions to display as buttons in the alert.
-        ///     The default is a single "OK" button with the
-        ///     ``ActionStyle/cancel`` style.
+        ///   - cancelButtonTitle: The title of the cancel button. The
+        ///     default is "Cancel".
+        ///   - cancelButtonStyle: The style of the cancel button. The
+        ///     default is ``ActionStyle/cancel``.
+        ///   - confirmButtonTitle: The title of the confirm button. The
+        ///     default is "Confirm".
+        ///   - confirmButtonStyle: The style of the confirm button. The
+        ///     default is ``ActionStyle/preferred``.
         public init(
             title: String? = nil,
-            message: String?,
-            actions: [Action] = [.init(Constants.defaultActionTitle, style: .cancel, effect: {})]
+            message: String,
+            cancelButtonTitle: String = Constants.defaultCancelButtonTitle,
+            cancelButtonStyle: ActionStyle = .cancel,
+            confirmButtonTitle: String = Constants.defaultConfirmButtonTitle,
+            confirmButtonStyle: ActionStyle = .preferred
         ) {
-            assert(!actions.isEmpty, "Modal alerts are not supported")
-            self.title = title
+            self.cancelButtonTitle = cancelButtonTitle
+            self.cancelButtonStyle = cancelButtonStyle
+            self.confirmButtonTitle = confirmButtonTitle
+            self.confirmButtonStyle = confirmButtonStyle
             self.message = message
-            self.actions = actions
+            self.title = title
         }
 
         // MARK: - Enable/Disable Actions
@@ -142,8 +147,8 @@ public extension AlertKit {
 
         // MARK: - Present
 
-        /// Presents the alert and suspends until the user selects an
-        /// action.
+        /// Presents the alert and suspends until the user makes a
+        /// choice.
         ///
         /// This method translates the alert's content before presentation
         /// according to the specified keys. Each key identifies a part of
@@ -152,23 +157,27 @@ public extension AlertKit {
         ///
         /// - Parameter keys: The parts of the alert to translate. The
         ///   default includes all translatable content.
+        ///
+        /// - Returns: `true` if the user taps the confirm button;
+        ///   `false` if they tap the cancel button.
         public func present(
             translating keys: [TranslationOptionKey] = [
-                .actions(),
+                .cancelButtonTitle,
+                .confirmButtonTitle,
                 .message,
                 .title,
             ]
-        ) async {
+        ) async -> Bool {
             await AlertKit.presentWithTranslation(
                 shouldTranslate: !keys.isEmpty,
                 presentDirectly: {
                     await withCheckedContinuation { continuation in
                         let continuation = ContinuationGuard(
                             continuation,
-                            fallbackValue: ()
+                            fallbackValue: false
                         )
 
-                        present { continuation.resume(returning: ()) }
+                        present { continuation.resume(returning: $0) }
                     }
                 },
                 translate: { try await translate(keys) },
@@ -178,43 +187,69 @@ public extension AlertKit {
         }
 
         private func present(
-            completion: @escaping () -> Void
+            completion: @escaping (Bool) -> Void
         ) {
             let alertController = UIAlertController(
                 title: title?.sanitized,
-                message: message?.sanitized,
+                message: message.sanitized,
                 preferredStyle: .alert
             )
 
-            alertController.addActions(
-                actions,
-                completion: completion
-            )
+            let cancelAction = UIAlertAction(
+                title: cancelButtonTitle.sanitized,
+                style: cancelButtonStyle.uiAlertStyle
+            ) { _ in
+                completion(false)
+            }
+
+            let confirmAction = UIAlertAction(
+                title: confirmButtonTitle.sanitized,
+                style: confirmButtonStyle.uiAlertStyle
+            ) { _ in
+                completion(true)
+            }
+
+            alertController.addAction(cancelAction)
+            alertController.addAction(confirmAction)
+
+            if cancelButtonStyle == .preferred || cancelButtonStyle == .destructivePreferred {
+                alertController.preferredAction = cancelAction
+            } else if confirmButtonStyle == .preferred || confirmButtonStyle == .destructivePreferred {
+                alertController.preferredAction = confirmAction
+            }
 
             alertController.applyAttributedStrings(
                 messageAttributes: messageAttributes,
                 titleAttributes: titleAttributes
             )
 
-            AlertKit.config.presentationDelegate?.present(alertController)
+            AlertKit
+                .config
+                .presentationDelegate?
+                .present(alertController)
         }
 
         // MARK: - Translate
 
         private func translate(
             _ keys: [TranslationOptionKey]
-        ) async throws -> Alert {
+        ) async throws -> ConfirmationAlert {
             let uniqueKeys = keys.unique
-            guard !uniqueKeys.isEmpty else { return self }
+            guard !uniqueKeys.isEmpty else {
+                return self
+            }
 
             let translations = try await AlertKit.getTranslations(
                 for: translationInputs(for: uniqueKeys)
             )
 
-            let alert: AKAlert = .init(
+            let alert: AKConfirmationAlert = .init(
                 title: title.map { translations.firstOutput(matching: $0) },
-                message: message.map { translations.firstOutput(matching: $0) },
-                actions: actions.applying(translations)
+                message: translations.firstOutput(matching: message),
+                cancelButtonTitle: translations.firstOutput(matching: cancelButtonTitle),
+                cancelButtonStyle: cancelButtonStyle,
+                confirmButtonTitle: translations.firstOutput(matching: confirmButtonTitle),
+                confirmButtonStyle: confirmButtonStyle
             )
 
             if let messageAttributes {
@@ -236,22 +271,13 @@ public extension AlertKit {
             var inputs = [TranslationInput]()
             for key in optionKeys {
                 switch key {
-                case let .actions(actions):
-                    guard !actions.isEmpty else {
-                        inputs.append(
-                            contentsOf: self.actions.map { .init($0.title) }
-                        )
-                        continue
-                    }
+                case .cancelButtonTitle:
+                    inputs.append(.init(cancelButtonTitle))
 
-                    inputs.append(
-                        contentsOf: self.actions.filter {
-                            actions.contains($0)
-                        }.map { .init($0.title) }
-                    )
+                case .confirmButtonTitle:
+                    inputs.append(.init(confirmButtonTitle))
 
                 case .message:
-                    guard let message else { continue }
                     inputs.append(.init(message))
 
                 case .title:

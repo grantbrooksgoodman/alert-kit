@@ -75,7 +75,11 @@ public extension AlertKit {
                 _ attributes: [NSAttributedString.Key: Any],
                 stringRanges: [String]
             ) {
-                assert(!attributes.isEmpty && !stringRanges.isEmpty, "Instantiated StringAttributes with empty attributes or stringRanges array")
+                assert(
+                    !attributes.isEmpty && !stringRanges.isEmpty,
+                    "Instantiated StringAttributes with empty attributes or stringRanges array"
+                )
+
                 self.attributes = attributes
                 self.stringRanges = stringRanges.filter { !$0.isEmpty }.unique
             }

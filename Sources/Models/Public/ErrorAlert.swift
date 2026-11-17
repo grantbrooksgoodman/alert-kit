@@ -38,19 +38,19 @@ public extension AlertKit {
     final class ErrorAlert {
         // MARK: - Properties
 
-        private let dismissButtonTitle: String
-        private let sendErrorReportButtonTitle: String
-
         /// The error that this alert presents.
         public private(set) var error: any Errorable
+
+        private let dismissButtonTitle: String
+        private let sendErrorReportButtonTitle: String
 
         // MARK: - Init
 
         /// Creates an error alert for the specified error.
         ///
         /// - Parameters:
-        ///   - error: The error to present. The error's description is
-        ///     displayed as the alert's message.
+        ///   - error: The error to present. The alert displays the
+        ///     error's description.
         ///   - dismissButtonTitle: The title of the dismiss button. The
         ///     default is "Dismiss".
         ///   - sendErrorReportButtonTitle: The title of the button that
@@ -150,15 +150,17 @@ public extension AlertKit {
                 alertController.message = "\n\(error.id)"
             }
 
-            let dismissAction = UIAlertAction(
+            alertController.addAction(UIAlertAction(
                 title: dismissButtonTitle.sanitized,
                 style: .cancel
             ) { _ in
                 completion()
-            }
+            })
 
-            alertController.addAction(dismissAction)
-            AlertKit.config.presentationDelegate?.present(alertController)
+            AlertKit
+                .config
+                .presentationDelegate?
+                .present(alertController)
         }
 
         // MARK: - Translate
@@ -167,7 +169,9 @@ public extension AlertKit {
             _ keys: [TranslationOptionKey]
         ) async throws -> ErrorAlert {
             let uniqueKeys = keys.unique
-            guard !uniqueKeys.isEmpty else { return self }
+            guard !uniqueKeys.isEmpty else {
+                return self
+            }
 
             let translations = try await AlertKit.getTranslations(
                 for: translationInputs(for: uniqueKeys)
@@ -177,7 +181,8 @@ public extension AlertKit {
             return .init(
                 error,
                 dismissButtonTitle: translations.firstOutput(matching: dismissButtonTitle),
-                sendErrorReportButtonTitle: translations.firstOutput(matching: sendErrorReportButtonTitle)
+                sendErrorReportButtonTitle: translations
+                    .firstOutput(matching: sendErrorReportButtonTitle)
             )
         }
 

@@ -1,5 +1,5 @@
 //
-//  ProgressAlert+Extensions.swift
+//  UIAlertController+InternalExtensions.swift
 //
 //  Created by Grant Brooks Goodman.
 //  Copyright © NEOTechnica Corporation. All rights reserved.
@@ -39,7 +39,32 @@ extension UIAlertController {
 
     // MARK: - Methods
 
-    func addProgressView(hasCancelAction: Bool) -> UIProgressView {
+    func addActions(
+        _ actions: [AlertKit.Action],
+        completion: @escaping () -> Void
+    ) {
+        for action in actions {
+            let alertAction = UIAlertAction(
+                title: action.title.sanitized,
+                style: action.style.uiAlertStyle
+            ) { _ in
+                action.perform()
+                completion()
+            }
+
+            alertAction.isEnabled = action.isEnabled
+            addAction(alertAction)
+
+            if action.style == .preferred ||
+                action.style == .destructivePreferred {
+                preferredAction = alertAction
+            }
+        }
+    }
+
+    func addProgressView(
+        hasCancelAction: Bool
+    ) -> UIProgressView {
         // `UIAlertController` provides no supported API for embedding
         // accessory views. Trailing newlines appended to the message
         // reserve vertical space beneath the text, and the progress
@@ -57,14 +82,10 @@ extension UIAlertController {
         progressView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(progressView)
 
-        let bottomInset = hasCancelAction
-            ? ProgressViewMetrics.bottomInsetWithCancelAction
-            : ProgressViewMetrics.bottomInset
-
         NSLayoutConstraint.activate([
             progressView.bottomAnchor.constraint(
                 equalTo: view.bottomAnchor,
-                constant: -bottomInset
+                constant: -(hasCancelAction ? ProgressViewMetrics.bottomInsetWithCancelAction : ProgressViewMetrics.bottomInset)
             ),
             progressView.leadingAnchor.constraint(
                 equalTo: view.leadingAnchor,
@@ -77,5 +98,26 @@ extension UIAlertController {
         ])
 
         return progressView
+    }
+
+    func applyAttributedStrings(
+        messageAttributes: AlertKit.AttributedStringConfig?,
+        titleAttributes: AlertKit.AttributedStringConfig?
+    ) {
+        if let messageAttributes,
+           let message {
+            setValue(
+                message.attributed(messageAttributes),
+                forKey: AlertKit.Constants.uiAlertControllerAttributedMessageKeyName
+            )
+        }
+
+        if let titleAttributes,
+           let title {
+            setValue(
+                title.attributed(titleAttributes),
+                forKey: AlertKit.Constants.uiAlertControllerAttributedTitleKeyName
+            )
+        }
     }
 }

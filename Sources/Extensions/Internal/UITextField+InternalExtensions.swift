@@ -1,5 +1,5 @@
 //
-//  UITextField+Extensions.swift
+//  UITextField+InternalExtensions.swift
 //
 //  Created by Grant Brooks Goodman.
 //  Copyright © NEOTechnica Corporation. All rights reserved.
@@ -10,7 +10,9 @@ import Foundation
 import UIKit
 
 extension UITextField {
-    func configure(with attributes: AlertKit.TextFieldAttributes) {
+    func configure(
+        with attributes: AlertKit.TextFieldAttributes
+    ) {
         autocapitalizationType = attributes.capitalizationType
         autocorrectionType = attributes.correctionType
         clearButtonMode = attributes.clearButtonMode
