@@ -17,7 +17,7 @@ let package = Package(
     dependencies: [
         .package(
             url: "https://github.com/grantbrooksgoodman/translator",
-            branch: "main"
+            exact: "9.2.1"
         ),
     ],
     targets: [
